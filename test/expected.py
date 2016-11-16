@@ -122,3 +122,31 @@ set_property = [(SET_PROP_TEST_PAGE,
                  '@%s:8:1\n' % (SET_PROP_TEST_PAGE, SET_PROP_TEST_PAGE),
                  u'window.HTMLFormElement.action',
                  u'set', u'TEST-ACTION', None, None)]
+
+page_links = {
+    (u'http://localtest.me:8000/test_pages/simple_a.html', u'http://localtest.me:8000/test_pages/simple_c.html'),
+    (u'http://localtest.me:8000/test_pages/simple_a.html', u'http://localtest.me:8000/test_pages/simple_d.html'),
+    (u'http://localtest.me:8000/test_pages/simple_a.html', u'http://example.com/test.html?localtest.me'),
+}
+
+# AudioContext and AudioNode symbols we expect from our test script
+audio = {
+    u"AudioContext.createOscillator",
+    u"AudioContext.createAnalyser",
+    u"AudioContext.createGain",
+    u"AudioContext.createScriptProcessor",
+    u"GainNode.gain",
+    u"OscillatorNode.type",
+    u"OscillatorNode.connect",
+    u"AnalyserNode.connect",
+    u"ScriptProcessorNode.connect",
+    u"AudioContext.destination",
+    u"GainNode.connect",
+    u"ScriptProcessorNode.onaudioprocess",
+    u"OscillatorNode.start",
+    u"AnalyserNode.frequencyBinCount",
+    u"AnalyserNode.getFloatFrequencyData",
+    u"AnalyserNode.disconnect",
+    u"ScriptProcessorNode.disconnect",
+    u"GainNode.disconnect",
+    u"OscillatorNode.stop"}

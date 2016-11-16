@@ -7,11 +7,9 @@ from platform_utils import get_version, get_configuration_string
 import CommandSequence
 import MPLogger
 
-from multiprocessing import Process, Queue
+from multiprocess import Process, Queue
 from Queue import Empty as EmptyQueue
-from six import reraise
 import threading
-import cPickle
 import copy
 import os
 import sqlite3
@@ -60,7 +58,15 @@ class TaskManager:
                 manager_params[path] = os.path.expanduser(manager_params[path])
         manager_params['database_name'] = os.path.join(manager_params['data_directory'],manager_params['database_name'])
         manager_params['log_file'] = os.path.join(manager_params['log_directory'],manager_params['log_file'])
+        manager_params['screenshot_path'] = os.path.join(manager_params['data_directory'], 'screenshots')
+        manager_params['source_dump_path'] = os.path.join(manager_params['data_directory'], 'sources')
         self.manager_params = manager_params
+
+        # Create data directories if they do not exist
+        if not os.path.exists(manager_params['screenshot_path']):
+            os.makedirs(manager_params['screenshot_path'])
+        if not os.path.exists(manager_params['source_dump_path']):
+            os.makedirs(manager_params['source_dump_path'])
 
         # check size of parameter dictionary
         self.num_browsers = manager_params['num_browsers']
@@ -106,7 +112,7 @@ class TaskManager:
         self._launch_aggregators()
 
         # open client socket
-        self.sock = clientsocket()
+        self.sock = clientsocket(serialization='dill')
         self.sock.connect(*self.manager_params['aggregator_address'])
 
         self._save_configuration(browser_params)
