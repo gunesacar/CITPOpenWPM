@@ -638,6 +638,42 @@ function getPageScript() {
     instrumentObject(window.GainNode.prototype, "GainNode");
     instrumentObject(window.ScriptProcessorNode.prototype, "ScriptProcessorNode");
 
+    function startMutationObserver(){
+      var target = document.body;
+      var observerConfig = {
+          attributes: true,
+          attributeOldValue: true,
+          characterData: true,
+          characterDataOldValue: true,
+          childList: true,
+          subtree: true
+        };
+
+      function subscriber(mutations) {
+        mutations.forEach((mutation) => {
+          console.log(mutation);
+        });
+      }
+      var observer = new MutationObserver(subscriber);
+      console.log("Will start the observer.");
+      try{
+        observer.observe(target, observerConfig);
+      }catch(error){
+        console.log("target is not ready.", target);
+      }
+      return observer;
+    }
+
+    var observer;
+    setTimeout(function(){
+      observer = startMutationObserver();
+    }, 1000);
+
+    function stopMutationObserver(){
+      // TODO: write tests
+      observer.disconnect();
+    }
+
     console.log("Successfully started all instrumentation.");
 
   } + "());";
