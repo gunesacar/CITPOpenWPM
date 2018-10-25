@@ -2043,50 +2043,130 @@ function getPageScript() {
      * Mutation Summary Library - End
      */
 
+    /* Mutation Summary - Begin */
     var observerSummary;
 
-    function onNodeAdded(node){
-      console.log("NodeAdded", node.nodeName,
-          node.wholeText, node.textContent,
-          node.__mutation_summary_node_map_id__)
-    }
+    function getNodeBoundingClientRect(node) {
+      // node can be an element or a TextNode
+      if (node.getBoundingClientRect)
+        return node.getBoundingClientRect();
 
-    function onNodeRemoved(node){
-      console.log("NodeRemoved", node.nodeName,
-          node.wholeText, node.textContent,
-          node.__mutation_summary_node_map_id__)
-    }
-
-    function onNodeReparented(node){
-      console.log("NodeReparented", node.nodeName,
-          node.wholeText, node.textContent,
-          node.__mutation_summary_node_map_id__)
-    }
-
-    function onNodeReordered(node){
-      console.log("NodeReordered", node.nodeName,
-          node.wholeText, node.textContent,
-          node.__mutation_summary_node_map_id__)
-    }
-
-    function oncharacterDataChanged(nodes, summary){
-      for (let node of nodes){
-        console.log("characterDataChanged", node.nodeName,
-            summary.getOldCharacterData(node),
-            node.wholeText, node.textContent,
-            node.__mutation_summary_node_map_id__);
+      // create a Range to find the bounding rect for textNodes
+      // modifed from https://stackoverflow.com/a/6966613
+      var range = document.createRange();
+      range.selectNodeContents(node);
+      if (range.getBoundingClientRect) {
+        return range.getBoundingClientRect();
       }
+      return null;
+    }
+
+    // Modified from https://stackoverflow.com/a/12418814
+    function inViewport (node) {
+      var r, html;
+      //
+      if (!(node || 1 === node.nodeType || 3 === node.nodeType))
+        return false;
+      html = document.documentElement;
+      r = getNodeBoundingClientRect(node);
+      return (
+        !!r && r.bottom >= 0 && r.right >= 0 &&
+        r.top <= html.clientHeight &&
+        r.left <= html.clientWidth
+      );
+    }
+
+
+    // TODO: populate the node
+    const FILTERED_NODETYPES = ["SCRIPT", "STYLE", "DOCUMENT"]
+    const TEXTNODE_NODETYPE = 3
+    const ELEMENT_NODETYPE = 1
+
+    function isVisible (node, logType) {
+      if (logType == "NodeRemoved"){
+        // not visible if removed
+        return false;
+      }else{
+        try{
+          return inViewport(node);
+        }catch(err){
+          console.log("Error when determining visibility", err)
+          return "?";
+        }
+      }
+    }
+
+    function shouldExclude(logType, node, isTextNode, summary){
+      let tagNameToCheck = node.tagName;
+      if (node.nodeType !== ELEMENT_NODETYPE && !isTextNode){
+        console.log("Excluding element of type", node.tagName,
+          node.nodeName, node.nodeType);
+        return true;
+      }
+
+      if (isTextNode){
+        // get parent's tagName for text nodes
+        tagNameToCheck = logType == "NodeRemoved" ?
+          summary.getOldParentNode(node).tagName:
+          node.parentNode.tagName;
+      }
+
+      if (FILTERED_NODETYPES.includes(tagNameToCheck)){
+        console.log("Excluding element of type",
+          node.tagName, node.nodeName, node.nodeType, tagNameToCheck)
+        return true;
+      }
+      return false;
+    }
+
+    function logMutationSummary(logType, node, summary, attrName=""){
+      let isTextNode = node.nodeType == TEXTNODE_NODETYPE;
+      if (shouldExclude(logType, node, isTextNode, summary))
+        return;
+
+      let visible = isVisible(node, logType);
+
+      let oldValue = "" // old char data or attribute value
+      if (logType == "CharacterDataChanged"){
+        oldValue = summary.getOldCharacterData(node)
+      }else if (logType == "AttributeChanged"){
+        oldValue = summary.getOldAttribute(node, attrName);
+      }
+      let style = isTextNode ? "" : window.getComputedStyle(node);
+      console.log(logType, ", NodeName:", node.nodeName,
+                  ", TextContent:", node.textContent && node.textContent.trim(),
+                  ", WholeText:", node.wholeText && node.wholeText.trim(),
+                  ", NodeId:", node.__mutation_summary_node_map_id__,
+                  ", Visible:", visible,
+                  ", Style:", style,
+                  oldValue? ", Old Value: " + oldValue :"");
+    }
+
+    function onNodeAdded(node, summary){
+      logMutationSummary("NodeAdded", node, summary);
+    }
+
+    function onNodeRemoved(node, summary){
+      logMutationSummary("NodeRemoved", node, summary);
+    }
+
+    function onNodeReparented(node, summary){
+      logMutationSummary("NodeReparented", node, summary);
+    }
+
+    function onNodeReordered(node, summary){
+      logMutationSummary("NodeReordered", node, summary);
+    }
+
+    function onCharacterDataChanged(node, summary){
+      logMutationSummary("CharacterDataChanged", node, summary);
     }
 
     function onAttrsChanged(attrChanges, summary){
       for (var attrName in attrChanges){
         var nodes = attrChanges[attrName];
         for (var node of nodes){
-          console.log("Attribute changed", attrName,
-              node.nodeName, node.getAttribute(attrName),
-              summary.getOldAttribute(node, attrName),
-              node.wholeText, node.textContent,
-              node.__mutation_summary_node_map_id__)
+          logMutationSummary("AttributeChanged", node, summary, attrName);
         }
       }
     }
@@ -2094,15 +2174,31 @@ function getPageScript() {
     function handleSummary(summaries) {
       // MutationSummary returns one summary for each query - we've one query
       var summary = summaries[0];
-      summary.added.forEach(onNodeAdded);
-      summary.removed.forEach(onNodeRemoved);
-      summary.reparented.forEach(onNodeReparented);
-      summary.reordered.forEach(onNodeReordered);
-      oncharacterDataChanged(summary.characterDataChanged, summary);
+      summary.added.forEach(function(node){
+        onNodeAdded(node, summary)
+      });
+      summary.removed.forEach(function(node){
+        onNodeRemoved(node, summary)
+      });
+      summary.reparented.forEach(function(node){
+        onNodeReparented(node, summary)
+      });
+      summary.reordered.forEach(function(node){
+        onNodeReordered(node, summary)
+      });
+      summary.characterDataChanged.forEach(function(node){
+        onCharacterDataChanged(node, summary)
+      });
       onAttrsChanged(summary.attributeChanged, summary);
     }
 
-    observerSummary = new MutationSummary({ callback: handleSummary, queries: [{ all: true }]});
+    window.onload = function(){
+      observerSummary = new MutationSummary({
+        callback: handleSummary, queries: [{all: true}]});
+    }
+
+    /* Mutation Summary - End */
+
 
   } + "());";
 }
