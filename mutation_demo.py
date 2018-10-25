@@ -22,8 +22,8 @@ for i in range(NUM_BROWSERS):
 browser_params[0]['headless'] = False  # Launch only browser 0 headless
 
 # Update TaskManager configuration (use this for crawl-wide settings)
-manager_params['data_directory'] = '~/Desktop/'
-manager_params['log_directory'] = '~/Desktop/'
+manager_params['data_directory'] = '~/openwpm-mutation/'
+manager_params['log_directory'] = '~/openwpm-mutation/'
 
 # Instantiates the measurement platform
 # Commands time out by default after 60 seconds
@@ -34,10 +34,7 @@ for site in sites:
     command_sequence = CommandSequence.CommandSequence(site)
 
     # Start by visiting the page
-    command_sequence.get(sleep=180, timeout=180)
-
-    # dump_profile_cookies/dump_flash_cookies closes the current tab.
-    command_sequence.dump_profile_cookies(120)
+    command_sequence.get(sleep=1800, timeout=1800)
 
     # index='**' synchronizes visits between the three browsers
     manager.execute_command_sequence(command_sequence, index='**')
