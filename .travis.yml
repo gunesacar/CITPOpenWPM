@@ -29,4 +29,4 @@ before_script:
   - flake8
 script:
   - cd test
-  - py.test -s -v --durations=10 $TESTS
+  - py.test -s -v -n 8 --durations=10 $TESTS

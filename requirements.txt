@@ -19,6 +19,7 @@ pyarrow
 pyasn1
 PyOPenSSL
 pytest
+pytest-xdist
 python-dateutil
 pyvirtualdisplay
 s3fs

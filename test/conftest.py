@@ -23,6 +23,9 @@ def create_xpi():
 @pytest.fixture(scope="session", autouse=True)
 def prepare_test_setup(request):
     """Run an HTTP server during the tests."""
+    if os.environ.get("PYTEST_XDIST_WORKER") not in ["gw0", None]:
+        # only run for the first worker if running with xdist
+        return
     create_xpi()
     print("\nStarting local_http_server")
     server, server_thread = utilities.start_server()
