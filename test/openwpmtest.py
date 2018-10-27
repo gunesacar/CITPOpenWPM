@@ -65,7 +65,8 @@ class OpenWPMTest(object):
                             "python-dateutil": "dateutil",
                             "flake8-isort": "flake8_isort",
                             "mini-amf": "miniamf",
-                            "pillow": "PIL"
+                            "pillow": "PIL",
+                            "pytest-xdist": "xdist"
                             }
         # get the mapped name if it exists.
         pkg_importable = pkg_name_mapping.get(pkg.lower(), pkg)
