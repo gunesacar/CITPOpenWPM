@@ -327,7 +327,7 @@ function getPageScript() {
 
     // For mutation summaries
     function logMutation(logType, nodeName, nodeId, textContent,
-        wholeText, visible, style, timeStamp, oldValue) {
+        wholeText, visible, style, boundingRect, timeStamp, oldValue) {
       if(inLog)
         return;
       inLog = true;
@@ -339,6 +339,10 @@ function getPageScript() {
           nodeName: nodeName,
           nodeId: nodeId,
           visible: visible,
+          width: Math.round(boundingRect.width),
+          height: Math.round(boundingRect.height),
+          top: Math.round(boundingRect.top),
+          left: Math.round(boundingRect.left),
           style: style,
           textContent: textContent,
           wholeText: wholeText,
@@ -2075,6 +2079,44 @@ function getPageScript() {
     /* Mutation Summary - Begin */
     var observerSummary;
 
+    // simple memoization to cache getDefaultComputedStyle's output
+    // should be tested before using with functions with multiple arguments
+    // Modified from https://addyosmani.com/blog/faster-javascript-memoization/
+    let memoize = function(func){
+      let cache = {};
+      return function(arg){
+        if(arg in cache) {
+          return cache[arg];
+        }
+        cache[arg] = func(arg);
+        return cache[arg];
+      }
+    }
+
+    let getMemoizedDefaultStyle = memoize(getDefaultComputedStyle);
+
+    function getNonDefaultStyles(el){
+      // TODO: This function takes a lot of cycles, optimize.
+      let t0 = performance.now();
+      let defaultStyle = getMemoizedDefaultStyle(el);
+      var t1 = performance.now();
+      let computedStyle = getComputedStyle(el);
+      var t2 = performance.now();
+      console.log("Call to getMemoizedDefaultStyle took " + (t1 - t0) + " milliseconds.");
+      console.log("Call to getComputedStyle took " + (t2 - t1) + " milliseconds.");
+      let styleDiff = {};
+      for (var rule in computedStyle){
+        if (computedStyle[rule] != defaultStyle[rule])
+            styleDiff[rule] = computedStyle[rule];
+      }
+      var t3 = performance.now();
+      console.log("Style comparison took " + (t3 - t2) + " milliseconds.");
+      return JSON.stringify(styleDiff);
+    }
+
+    const TEXTNODE_NODETYPE = 3
+    const ELEMENT_NODETYPE = 1
+
     function getNodeBoundingClientRect(node) {
       // node can be an element or a TextNode
       if (node.getBoundingClientRect)
@@ -2091,13 +2133,9 @@ function getPageScript() {
     }
 
     // Modified from https://stackoverflow.com/a/12418814
-    function inViewport (node) {
-      var r, html;
-      //
-      if (!(node || 1 === node.nodeType || 3 === node.nodeType))
-        return false;
-      html = document.documentElement;
-      r = getNodeBoundingClientRect(node);
+    function inViewport(node, boundingRect){
+      let r = boundingRect,
+        html = document.documentElement;
       return (
         !!r && r.bottom >= 0 && r.right >= 0 &&
         r.top <= html.clientHeight &&
@@ -2105,25 +2143,8 @@ function getPageScript() {
       );
     }
 
-
-    // TODO: populate the node
+    // TODO: Add other node types that we want to exclude
     const FILTERED_NODETYPES = ["SCRIPT", "STYLE", "DOCUMENT"]
-    const TEXTNODE_NODETYPE = 3
-    const ELEMENT_NODETYPE = 1
-
-    function isVisible (node, logType) {
-      if (logType == "NodeRemoved"){
-        // not visible if removed
-        return false;
-      }else{
-        try{
-          return inViewport(node);
-        }catch(err){
-          console.log("Error when determining visibility", err)
-          return "?";
-        }
-      }
-    }
 
     function shouldExclude(logType, node, isTextNode, summary){
       let tagNameToCheck = node.tagName;
@@ -2153,7 +2174,8 @@ function getPageScript() {
       if (shouldExclude(logType, node, isTextNode, summary))
         return;
 
-      let visible = isVisible(node, logType);
+      let boundingRect = getNodeBoundingClientRect(node);
+      let visible = logType == "NodeRemoved"? false : inViewport(node, boundingRect);
 
       let oldValue = "" // old char data or attribute value
       if (logType == "CharacterDataChanged"){
@@ -2161,7 +2183,7 @@ function getPageScript() {
       }else if (logType == "AttributeChanged"){
         oldValue = summary.getOldAttribute(node, attrName);
       }
-      let style = isTextNode ? "" : window.getComputedStyle(node) + "";
+      let style = isTextNode ? "" : getNonDefaultStyles(node) + "";
       let textContent = node.textContent && node.textContent.trim();
       let wholeText = node.wholeText === undefined? "" : node.wholeText.trim();
       console.log(timeStamp, logType, ", NodeName:", node.nodeName,
@@ -2169,11 +2191,12 @@ function getPageScript() {
                   ", WholeText:", wholeText,
                   ", NodeId:", node.__mutation_summary_node_map_id__,
                   ", Visible:", visible,
+                  ", Rect:", boundingRect,
                   ", Style:", style,
                   oldValue? ", Old Value: " + oldValue :"");
       // TODO: pass all the info that we want to store
       logMutation(logType, node.nodeName, node.__mutation_summary_node_map_id__,
-          textContent, wholeText, visible, style, timeStamp, oldValue);
+          textContent, wholeText, visible, style, boundingRect, timeStamp, oldValue);
     }
 
     function onNodeAdded(node, summary, timeStamp){
