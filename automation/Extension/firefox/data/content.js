@@ -325,6 +325,35 @@ function getPageScript() {
       inLog = false;
     }
 
+    // For mutation summaries
+    function logMutation(logType, nodeName, nodeId, textContent,
+        wholeText, visible, style, timeStamp, oldValue) {
+      if(inLog)
+        return;
+      inLog = true;
+
+      try {
+        // Convert special arguments array to a standard array for JSONifying
+        var msg = {
+          logType: logType,
+          nodeName: nodeName,
+          nodeId: nodeId,
+          visible: visible,
+          style: style,
+          textContent: textContent,
+          wholeText: wholeText,
+          oldValue: oldValue,
+          mutationTimeStamp: timeStamp
+        }
+        send('logMutation', msg);
+      }
+      catch(error) {
+        console.log("Unsuccessful call log: " + instrumentedFunctionName);
+        logErrorToConsole(error);
+      }
+      inLog = false;
+    }
+
     // Rough implementations of Object.getPropertyDescriptor and Object.getPropertyNames
     // See http://wiki.ecmascript.org/doku.php?id=harmony:extended_object_api
     Object.getPropertyDescriptor = function (subject, name) {
@@ -2119,7 +2148,7 @@ function getPageScript() {
       return false;
     }
 
-    function logMutationSummary(logType, node, summary, attrName=""){
+    function logMutationSummary(logType, node, summary, timeStamp, attrName=""){
       let isTextNode = node.nodeType == TEXTNODE_NODETYPE;
       if (shouldExclude(logType, node, isTextNode, summary))
         return;
@@ -2132,64 +2161,70 @@ function getPageScript() {
       }else if (logType == "AttributeChanged"){
         oldValue = summary.getOldAttribute(node, attrName);
       }
-      let style = isTextNode ? "" : window.getComputedStyle(node);
-      console.log(logType, ", NodeName:", node.nodeName,
-                  ", TextContent:", node.textContent && node.textContent.trim(),
-                  ", WholeText:", node.wholeText && node.wholeText.trim(),
+      let style = isTextNode ? "" : window.getComputedStyle(node) + "";
+      let textContent = node.textContent && node.textContent.trim();
+      let wholeText = node.wholeText === undefined? "" : node.wholeText.trim();
+      console.log(timeStamp, logType, ", NodeName:", node.nodeName,
+                  ", TextContent:", textContent,
+                  ", WholeText:", wholeText,
                   ", NodeId:", node.__mutation_summary_node_map_id__,
                   ", Visible:", visible,
                   ", Style:", style,
                   oldValue? ", Old Value: " + oldValue :"");
+      // TODO: pass all the info that we want to store
+      logMutation(logType, node.nodeName, node.__mutation_summary_node_map_id__,
+          textContent, wholeText, visible, style, timeStamp, oldValue);
     }
 
-    function onNodeAdded(node, summary){
-      logMutationSummary("NodeAdded", node, summary);
+    function onNodeAdded(node, summary, timeStamp){
+      logMutationSummary("NodeAdded", node, summary, timeStamp);
     }
 
-    function onNodeRemoved(node, summary){
-      logMutationSummary("NodeRemoved", node, summary);
+    function onNodeRemoved(node, summary, timeStamp){
+      logMutationSummary("NodeRemoved", node, summary, timeStamp);
     }
 
-    function onNodeReparented(node, summary){
-      logMutationSummary("NodeReparented", node, summary);
+    function onNodeReparented(node, summary, timeStamp){
+      logMutationSummary("NodeReparented", node, summary, timeStamp);
     }
 
-    function onNodeReordered(node, summary){
-      logMutationSummary("NodeReordered", node, summary);
+    function onNodeReordered(node, summary, timeStamp){
+      logMutationSummary("NodeReordered", node, summary, timeStamp);
     }
 
-    function onCharacterDataChanged(node, summary){
-      logMutationSummary("CharacterDataChanged", node, summary);
+    function onCharacterDataChanged(node, summary, timeStamp){
+      logMutationSummary("CharacterDataChanged", node, summary, timeStamp);
     }
 
-    function onAttrsChanged(attrChanges, summary){
+    function onAttrsChanged(attrChanges, summary, timeStamp){
       for (var attrName in attrChanges){
         var nodes = attrChanges[attrName];
         for (var node of nodes){
-          logMutationSummary("AttributeChanged", node, summary, attrName);
+          logMutationSummary("AttributeChanged", node, summary, timeStamp, attrName);
         }
       }
     }
 
     function handleSummary(summaries) {
       // MutationSummary returns one summary for each query - we've one query
+      let timeStamp = new Date().toISOString();
       var summary = summaries[0];
       summary.added.forEach(function(node){
-        onNodeAdded(node, summary)
+        onNodeAdded(node, summary, timeStamp)
       });
       summary.removed.forEach(function(node){
-        onNodeRemoved(node, summary)
+        onNodeRemoved(node, summary, timeStamp)
       });
       summary.reparented.forEach(function(node){
-        onNodeReparented(node, summary)
+        onNodeReparented(node, summary, timeStamp)
       });
       summary.reordered.forEach(function(node){
-        onNodeReordered(node, summary)
+        onNodeReordered(node, summary, timeStamp)
       });
       summary.characterDataChanged.forEach(function(node){
-        onCharacterDataChanged(node, summary)
+        onCharacterDataChanged(node, summary, timeStamp)
       });
-      onAttrsChanged(summary.attributeChanged, summary);
+      onAttrsChanged(summary.attributeChanged, summary, timeStamp);
     }
 
     window.onload = function(){

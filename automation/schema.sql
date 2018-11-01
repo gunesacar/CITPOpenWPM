@@ -155,3 +155,18 @@ CREATE TABLE IF NOT EXISTS javascript_cookies(
     status INTEGER,
     value TEXT
 );
+
+CREATE TABLE IF NOT EXISTS mutations(
+    id INTEGER PRIMARY KEY ASC,
+    crawl_id INTEGER,
+    visit_id INTEGER,
+    log_type TEXT,
+    node_name TEXT,
+    node_id INTEGER,
+    visible BOOLEAN,
+    style TEXT,
+    text_content TEXT,
+    whole_text TEXT,
+    old_value TEXT,
+    time_stamp TEXT NOT NULL
+);

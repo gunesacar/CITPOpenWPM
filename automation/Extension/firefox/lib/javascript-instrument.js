@@ -13,6 +13,22 @@ exports.run = function(crawlID, testing) {
       'testing': testing
     },
     onAttach: function onAttach(worker) {
+
+      function processMutationSummaries(data) {
+        var update = {};
+        update["crawl_id"] = crawlID;
+        update["log_type"] = loggingDB.escapeString(data.logType);
+        update["node_name"] = loggingDB.escapeString(data.nodeName);
+        update["node_id"] = loggingDB.escapeString(data.nodeId);
+        update["visible"] = loggingDB.escapeString(data.visible);
+        update["text_content"] = loggingDB.escapeString(data.textContent);
+        update["whole_text"] = loggingDB.escapeString(data.wholeText);
+        update["style"] = loggingDB.escapeString(data.style);
+        update["old_value"] = loggingDB.escapeString(data.oldValue);
+        update["time_stamp"] = data.mutationTimeStamp;
+        loggingDB.saveRecord("mutations", update);
+      }
+
       function processCallsAndValues(data) {
         var update = {};
         update["crawl_id"] = crawlID;
@@ -49,6 +65,7 @@ exports.run = function(crawlID, testing) {
       }
       worker.port.on("logCall", function(data){processCallsAndValues(data)});
       worker.port.on("logValue", function(data){processCallsAndValues(data)});
+      worker.port.on("logMutation", function(data){processMutationSummaries(data)});
     }
   });
 };
