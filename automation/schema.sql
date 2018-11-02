@@ -163,6 +163,9 @@ CREATE TABLE IF NOT EXISTS mutations(
     log_type TEXT,
     node_name TEXT,
     node_id INTEGER,
+    attr_name TEXT,
+    old_value TEXT,
+    new_value TEXT,
     visible BOOLEAN,
     top INTEGER,
     left INTEGER,
@@ -171,6 +174,5 @@ CREATE TABLE IF NOT EXISTS mutations(
     style TEXT,
     text_content TEXT,
     whole_text TEXT,
-    old_value TEXT,
     time_stamp TEXT NOT NULL
 );

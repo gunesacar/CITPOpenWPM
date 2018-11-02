@@ -327,7 +327,7 @@ function getPageScript() {
 
     // For mutation summaries
     function logMutation(logType, nodeName, nodeId, textContent,
-        wholeText, visible, style, boundingRect, timeStamp, oldValue) {
+        wholeText, visible, style, boundingRect, timeStamp, attrName, oldValue, newValue) {
       if(inLog)
         return;
       inLog = true;
@@ -338,6 +338,9 @@ function getPageScript() {
           logType: logType,
           nodeName: nodeName,
           nodeId: nodeId,
+          attrName: attrName,
+          oldValue: oldValue,
+          newValue: newValue,
           visible: visible,
           width: Math.round(boundingRect.width),
           height: Math.round(boundingRect.height),
@@ -346,7 +349,6 @@ function getPageScript() {
           style: style,
           textContent: textContent,
           wholeText: wholeText,
-          oldValue: oldValue,
           mutationTimeStamp: timeStamp
         }
         send('logMutation', msg);
@@ -2144,7 +2146,7 @@ function getPageScript() {
     }
 
     // TODO: Add other node types that we want to exclude
-    const FILTERED_NODETYPES = ["SCRIPT", "STYLE", "DOCUMENT"]
+    const FILTERED_NODETYPES = ["SCRIPT", "STYLE", "DOCUMENT", "BODY"];
 
     function shouldExclude(logType, node, isTextNode, summary){
       let tagNameToCheck = node.tagName;
@@ -2177,26 +2179,33 @@ function getPageScript() {
       let boundingRect = getNodeBoundingClientRect(node);
       let visible = logType == "NodeRemoved"? false : inViewport(node, boundingRect);
 
-      let oldValue = "" // old char data or attribute value
+      let oldValue = "",  // old char data or attribute value
+        newValue = "";  // new attribute value
       if (logType == "CharacterDataChanged"){
         oldValue = summary.getOldCharacterData(node)
       }else if (logType == "AttributeChanged"){
         oldValue = summary.getOldAttribute(node, attrName);
+        newValue = node.getAttribute(attrName);
       }
       let style = isTextNode ? "" : getNonDefaultStyles(node) + "";
       let textContent = node.textContent && node.textContent.trim();
       let wholeText = node.wholeText === undefined? "" : node.wholeText.trim();
-      console.log(timeStamp, logType, ", NodeName:", node.nodeName,
+      console.log(timeStamp, logType,
+                  attrName? ", AttrName: " + attrName : "",
+                  oldValue? ", Old Value: " + oldValue : "",
+                  newValue? ", New Value: " + newValue : "",
+                  ", NodeName:", node.nodeName,
                   ", TextContent:", textContent,
                   ", WholeText:", wholeText,
                   ", NodeId:", node.__mutation_summary_node_map_id__,
                   ", Visible:", visible,
                   ", Rect:", boundingRect,
-                  ", Style:", style,
-                  oldValue? ", Old Value: " + oldValue :"");
+                 // ", Style:", style
+                    );
       // TODO: pass all the info that we want to store
       logMutation(logType, node.nodeName, node.__mutation_summary_node_map_id__,
-          textContent, wholeText, visible, style, boundingRect, timeStamp, oldValue);
+          textContent, wholeText, visible, style, boundingRect, timeStamp,
+          attrName, oldValue, newValue);
     }
 
     function onNodeAdded(node, summary, timeStamp){

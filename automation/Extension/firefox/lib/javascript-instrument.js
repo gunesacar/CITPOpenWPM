@@ -20,6 +20,9 @@ exports.run = function(crawlID, testing) {
         update["log_type"] = loggingDB.escapeString(data.logType);
         update["node_name"] = loggingDB.escapeString(data.nodeName);
         update["node_id"] = loggingDB.escapeString(data.nodeId);
+        update["attr_name"] = loggingDB.escapeString(data.attrName);
+        update["old_value"] = loggingDB.escapeString(data.oldValue);
+        update["new_value"] = loggingDB.escapeString(data.newValue);
         update["visible"] = loggingDB.escapeString(data.visible);
         update["top"] = loggingDB.escapeString(data.top);
         update["left"] = loggingDB.escapeString(data.left);
@@ -28,7 +31,6 @@ exports.run = function(crawlID, testing) {
         update["text_content"] = loggingDB.escapeString(data.textContent);
         update["whole_text"] = loggingDB.escapeString(data.wholeText);
         update["style"] = loggingDB.escapeString(data.style);
-        update["old_value"] = loggingDB.escapeString(data.oldValue);
         update["time_stamp"] = data.mutationTimeStamp;
         loggingDB.saveRecord("mutations", update);
       }
