@@ -326,7 +326,7 @@ function getPageScript() {
     }
 
     // For mutation summaries
-    function logMutation(logType, nodeName, nodeId, textContent,
+    function logMutation(logType, nodeName, nodeId, innerText, textContent,
         wholeText, visible, style, boundingRect, timeStamp, attrName, oldValue, newValue) {
       if(inLog)
         return;
@@ -347,6 +347,7 @@ function getPageScript() {
           top: Math.round(boundingRect.top),
           left: Math.round(boundingRect.left),
           style: style,
+          innerText: innerText,
           textContent: textContent,
           wholeText: wholeText,
           mutationTimeStamp: timeStamp
@@ -2146,7 +2147,9 @@ function getPageScript() {
     }
 
     // TODO: Add other node types that we want to exclude
-    const FILTERED_NODETYPES = ["SCRIPT", "STYLE", "DOCUMENT", "BODY"];
+    const FILTERED_NODETYPES = ["SCRIPT", "STYLE", "DOCUMENT", "BODY",
+      "IFRAME", "POLYGON", "SVG", "PATH", "POLYLINE", "RECT", "BR",
+      "IMG", "HTML", "HR"];
 
     function shouldExclude(logType, node, isTextNode, summary){
       let tagNameToCheck = node.tagName;
@@ -2163,7 +2166,7 @@ function getPageScript() {
           node.parentNode.tagName;
       }
 
-      if (FILTERED_NODETYPES.includes(tagNameToCheck)){
+      if (FILTERED_NODETYPES.includes(tagNameToCheck.toUpperCase())){
         console.log("Excluding element of type",
           node.tagName, node.nodeName, node.nodeType, tagNameToCheck)
         return true;
@@ -2178,7 +2181,10 @@ function getPageScript() {
 
       let boundingRect = getNodeBoundingClientRect(node);
       let visible = logType == "NodeRemoved"? false : inViewport(node, boundingRect);
-
+      if (!visible){
+        console.log("Node is not in the viewport, will skip");
+        return;
+      }
       let oldValue = "",  // old char data or attribute value
         newValue = "";  // new attribute value
       if (logType == "CharacterDataChanged"){
@@ -2189,12 +2195,16 @@ function getPageScript() {
       }
       let style = isTextNode ? "" : getNonDefaultStyles(node) + "";
       let textContent = node.textContent && node.textContent.trim();
+      let innerText = node.innerText === undefined? "" : node.innerText.trim();
       let wholeText = node.wholeText === undefined? "" : node.wholeText.trim();
-      console.log(timeStamp, logType,
+      const ENABLE_MUTATION_LOGS = 0
+      if (ENABLE_MUTATION_LOGS)
+        console.log(timeStamp, logType,
+                  ", NodeName:", node.nodeName,
                   attrName? ", AttrName: " + attrName : "",
                   oldValue? ", Old Value: " + oldValue : "",
                   newValue? ", New Value: " + newValue : "",
-                  ", NodeName:", node.nodeName,
+                  ", InnerContent:", innerText,
                   ", TextContent:", textContent,
                   ", WholeText:", wholeText,
                   ", NodeId:", node.__mutation_summary_node_map_id__,
@@ -2204,16 +2214,21 @@ function getPageScript() {
                     );
       // TODO: pass all the info that we want to store
       logMutation(logType, node.nodeName, node.__mutation_summary_node_map_id__,
-          textContent, wholeText, visible, style, boundingRect, timeStamp,
+          innerText, textContent, wholeText, visible, style, boundingRect, timeStamp,
           attrName, oldValue, newValue);
     }
 
     function onNodeAdded(node, summary, timeStamp){
+      if ((node.nodeType == TEXTNODE_NODETYPE) && summary.added.includes(node.parentNode)){
+        console.log("Will skip the textnode, its parent is also added", node);
+        return;
+      }
       logMutationSummary("NodeAdded", node, summary, timeStamp);
     }
-
+    const EXCLUDE_NODE_REMOVED = true;  // do not process node removed events
     function onNodeRemoved(node, summary, timeStamp){
-      logMutationSummary("NodeRemoved", node, summary, timeStamp);
+      if (!EXCLUDE_NODE_REMOVED)
+        logMutationSummary("NodeRemoved", node, summary, timeStamp);
     }
 
     function onNodeReparented(node, summary, timeStamp){

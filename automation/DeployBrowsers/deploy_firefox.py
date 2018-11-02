@@ -15,7 +15,8 @@ from ..utilities.platform_utils import (get_firefox_binary_path,
 from .selenium_firefox import (FirefoxBinary, FirefoxLogInterceptor,
                                FirefoxProfile, Options)
 
-DEFAULT_SCREEN_RES = (1366, 768)
+# DEFAULT_SCREEN_RES = (1366, 768)
+DEFAULT_SCREEN_RES = (1200, 1920)  # 24" vertical monitor
 
 
 def deploy_firefox(status_queue, browser_params, manager_params,

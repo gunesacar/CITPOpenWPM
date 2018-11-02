@@ -28,6 +28,7 @@ exports.run = function(crawlID, testing) {
         update["left"] = loggingDB.escapeString(data.left);
         update["width"] = loggingDB.escapeString(data.width);
         update["height"] = loggingDB.escapeString(data.height);
+        update["inner_text"] = loggingDB.escapeString(data.innerText);
         update["text_content"] = loggingDB.escapeString(data.textContent);
         update["whole_text"] = loggingDB.escapeString(data.wholeText);
         update["style"] = loggingDB.escapeString(data.style);

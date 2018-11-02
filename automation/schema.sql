@@ -172,6 +172,7 @@ CREATE TABLE IF NOT EXISTS mutations(
     width INTEGER,
     height INTEGER,
     style TEXT,
+    inner_text TEXT,
     text_content TEXT,
     whole_text TEXT,
     time_stamp TEXT NOT NULL
