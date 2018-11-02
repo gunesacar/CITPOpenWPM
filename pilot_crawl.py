@@ -19,7 +19,6 @@ manager_params['log_directory'] = '~/' + prefix
 
 # Read the site list
 sites = open("prod_links.csv").readlines()
-sites = open("prod_links_10.csv").readlines()
 
 TOTAL_NUM_SITES = len(sites)
 
