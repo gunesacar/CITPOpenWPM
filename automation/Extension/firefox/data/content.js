@@ -2099,7 +2099,6 @@ function getPageScript() {
     let getMemoizedDefaultStyle = memoize(getDefaultComputedStyle);
 
     function getNonDefaultStyles(el){
-      // TODO: This function takes a lot of cycles, optimize.
       let t0 = performance.now();
       let defaultStyle = getMemoizedDefaultStyle(el);
       var t1 = performance.now();
@@ -2107,14 +2106,17 @@ function getPageScript() {
       var t2 = performance.now();
       console.log("Call to getMemoizedDefaultStyle took " + (t1 - t0) + " milliseconds.");
       console.log("Call to getComputedStyle took " + (t2 - t1) + " milliseconds.");
-      let styleDiff = {};
-      for (var rule in computedStyle){
-        if (computedStyle[rule] != defaultStyle[rule])
-            styleDiff[rule] = computedStyle[rule];
-      }
+      let nonDefaultStyle = {};
+      let prop;  // CSS property
       var t3 = performance.now();
-      console.log("Style comparison took " + (t3 - t2) + " milliseconds.");
-      return JSON.stringify(styleDiff);
+      for (let i = 0; i < computedStyle.length; i++){
+        prop = computedStyle[i];
+        if (computedStyle[prop] != defaultStyle[prop])
+          nonDefaultStyle[prop] = computedStyle[prop];
+      }
+      var t4 = performance.now();
+      console.log("Style comparison took " + (t4 - t3) + " milliseconds.");
+      return JSON.stringify(nonDefaultStyle);
     }
 
     const TEXTNODE_NODETYPE = 3
