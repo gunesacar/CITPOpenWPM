@@ -177,3 +177,21 @@ CREATE TABLE IF NOT EXISTS mutations(
     whole_text TEXT,
     time_stamp TEXT NOT NULL
 );
+
+
+CREATE TABLE IF NOT EXISTS segments(
+    id INTEGER PRIMARY KEY ASC,
+    crawl_id INTEGER,
+    visit_id INTEGER,
+    node_name TEXT,
+    visible BOOLEAN,
+    top INTEGER,
+    left INTEGER,
+    width INTEGER,
+    height INTEGER,
+    style TEXT,
+    inner_text TEXT,
+    text_content TEXT,
+    whole_text TEXT,
+    time_stamp TEXT NOT NULL
+);
