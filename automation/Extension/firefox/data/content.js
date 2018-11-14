@@ -363,7 +363,7 @@ function getPageScript() {
 
 
     // For segmentation results
-    function logSegment(nodeName, innerText, textContent, wholeText, style, boundingRect, timeStamp) {
+    function logSegment(nodeName, innerText, textContent, wholeText, style, boundingRect, timeStamp, outerHtml) {
       if(inLog)
         return;
       inLog = true;
@@ -380,12 +380,43 @@ function getPageScript() {
           innerText: innerText,
           textContent: textContent,
           wholeText: wholeText,
+          outerHtml: outerHtml,
           mutationTimeStamp: timeStamp
         }
         send('logSegment', msg);
       }
       catch(error) {
-        console.log("Unsuccessful call log: " + logSegment + "-" + nodeName);
+        console.log("Unsuccessful segment log: " + logSegment + "-" + nodeName);
+        logErrorToConsole(error);
+      }
+      inLog = false;
+    }
+
+    // For segmentation results
+    function logBasicSegment(nodeName, innerText, textContent, wholeText, style, boundingRect, timeStamp, outerHtml) {
+      if(inLog)
+        return;
+      inLog = true;
+
+      try {
+        // Convert special arguments array to a standard array for JSONifying
+        var msg = {
+          nodeName: nodeName,
+          width: Math.round(boundingRect.width),
+          height: Math.round(boundingRect.height),
+          top: Math.round(boundingRect.top),
+          left: Math.round(boundingRect.left),
+          style: style,
+          innerText: innerText,
+          textContent: textContent,
+          wholeText: wholeText,
+          outerHtml: outerHtml,
+          mutationTimeStamp: timeStamp
+        }
+        send('logBasicSegment', msg);
+      }
+      catch(error) {
+        console.log("Unsuccessful basic segment log: " + logSegment + "-" + nodeName);
         logErrorToConsole(error);
       }
       inLog = false;
@@ -2314,7 +2345,9 @@ function getPageScript() {
       }
     }
     /* Mutation Summary - End */
+    /******************************************/
 
+    /******************************************/
     /* Segmentation - Start */
     var blockElements = ['div', 'body', 'section', 'article', 'aside', 'nav', 'header', 'footer', 'main', 'form', 'fieldset'];
     var ignoredElements = ['script', 'style', 'noscript', 'br', 'hr'];
@@ -2332,8 +2365,10 @@ function getPageScript() {
     var isVisuallyHidden = function(element) {
       var style = window.getComputedStyle(element);
       // TODO: gunes: not sure what to return when the style is null
-      if (style === null)
+      if (style === null){
+        console.log("Style is null", element.nodeName);
         return true;
+      }
       if (style.display === 'none' || style.visibility === 'hidden') {
         return true;
       } else if (parseFloat(style.opacity) === 0.0) {
@@ -2904,7 +2939,7 @@ function getPageScript() {
         return segment;
       }
     };
-    
+
     function logSegmentDetails(node){
       let timeStamp = new Date().toISOString();
       let style = getNonDefaultStyles(node);
@@ -2912,25 +2947,27 @@ function getPageScript() {
       let textContent = node.textContent && node.textContent.trim();
       let innerText = node.innerText === undefined? "" : node.innerText.trim();
       let wholeText = node.wholeText === undefined? "" : node.wholeText.trim();
-      const ENABLE_SEGMENT_LOGS = 1
+      let outerHtml = node.outerHTML;
+      const ENABLE_SEGMENT_LOGS = 0
       if (ENABLE_SEGMENT_LOGS)
         console.log(timeStamp,
                   ", NodeName:", node.nodeName,
                   ", boundingRect:", boundingRect,
-                  ", InnerContent:", innerText,
+                  ", innerText:", innerText,
                   ", TextContent:", textContent,
                   ", WholeText:", wholeText,
                  // ", Style:", style
                     );
       // TODO: pass all the info that we want to store
-      logSegment(node.nodeName, innerText, textContent, wholeText, style, boundingRect, timeStamp);
+      logSegment(node.nodeName, innerText, textContent, wholeText,
+          style, boundingRect, timeStamp, outerHtml);
     }
 
     const ENABLE_SEGMENTATION = true;
     if(ENABLE_SEGMENTATION){
       window.onload = function(){
         var segments = doSegment(document.body);
-        console.log(segments);
+        // console.log(segments);
         for (var node of segments){
           logSegmentDetails(node);
         }
@@ -2938,7 +2975,181 @@ function getPageScript() {
     }
 
     /* Segmentation - End */
+    /******************************************/
 
+    /******************************************/
+    /* Segmentation algo 2 (old method) - Start */
+    var blockElements = ['div', 'body', 'section', 'article', 'aside', 'nav', 'header', 'footer', 'main', 'form', 'fieldset'];
+    var ignoredElements = ['script', 'style', 'noscript', 'br', 'hr'];
+
+    var allIgnoreChildren = function(element) {
+      if (element.children.length === 0) {
+        return false;
+      } else {
+        for (var child of element.children) {
+          if (ignoredElements.includes(child.tagName.toLowerCase())) {
+            continue;
+          } else {
+            return false;
+          }
+        }
+        return true;
+      }
+    };
+
+    var containsBlockElementsOld = function(element) {
+      for (var child of element.children) {
+        if (blockElements.includes(child.tagName.toLowerCase())) {
+          return true;
+        }
+      }
+
+      return false;
+    }
+
+    var filterText = function(text) {
+      return text.replace(/(\r\n|\n|\r)/gm, '').trim();
+    }
+
+    var containsTextNodes = function(element) {
+      if (element) {
+        if (element.hasChildNodes()) {
+
+          var nodes = [];
+          for (var cnode of element.childNodes) {
+            if (cnode.nodeType == Node.TEXT_NODE) {
+              var text = filterText(cnode.nodeValue);
+              if (text.length !== 0) {
+                nodes.push(text);
+              }
+            }
+          }
+
+          if (nodes.length > 0) {
+            return true;
+          } else {
+            return false;
+          }
+        } else {
+          return false;
+        }
+      } else {
+        return false;
+      }
+    };
+
+    var notPixel = function(element) {
+      var style = window.getComputedStyle(element);
+
+      var height = element.offsetHeight;
+      var width = element.offsetWidth;
+
+      return (height !== 1 && width !== 1);
+    };
+
+    var segments = function(element) {
+      if (element && !isVisuallyHidden(element) && notPixel(element)) {
+        var tag = element.tagName.toLowerCase();
+        if (blockElements.includes(tag)) {
+          if (!containsBlockElementsOld(element)) {
+            if (allIgnoreChildren(element)) {
+              return [];
+            } else {
+              return [element];
+            }
+          } else if (containsTextNodes(element)) {
+            return [element];
+          } else {
+
+            var result = [];
+
+            for (var child of element.children) {
+              result = result.concat(segments(child));
+            }
+
+            return result;
+          }
+        } else if (ignoredElements.includes(tag)) {
+          return [];
+        } else {
+          return [element];
+        }
+      } else {
+        return [];
+      }
+    };
+
+    var getChildren = function(n, skipMe) {
+      var r = [];
+      for (; n; n = n.nextSibling)
+        if (n.nodeType == 1 && n != skipMe)
+          r.push(n);
+      return r;
+    };
+
+    var getSiblings = function(n) {
+      return getChildren(n.parentNode.firstChild, n);
+    };
+
+    var resolveSegmentOld = function(segment) {
+      if (segment && blockElements.includes(segment.tagName.toLowerCase())) {
+        var element = segment;
+        while (true && element.tagName.toLowerCase() !== 'body') {
+          var siblings = getSiblings(element).filter(sib => !isVisuallyHidden(sib));
+
+          if (siblings.length === 0 && blockElements.includes(element.parentElement.tagName.toLowerCase())) {
+            element = element.parentElement;
+          } else {
+            break;
+          }
+        }
+
+        return element;
+      } else {
+        return segment;
+      }
+    };
+
+    function logBasicSegmentDetails(node){
+      let timeStamp = new Date().toISOString();
+      let style = getNonDefaultStyles(node);
+      let boundingRect = getNodeBoundingClientRect(node);
+      let textContent = node.textContent && node.textContent.trim();
+      let innerText = node.innerText === undefined? "" : node.innerText.trim();
+      let wholeText = node.wholeText === undefined? "" : node.wholeText.trim();
+      let outerHtml = node.outerHTML;
+      const ENABLE_BASIC_SEGMENT_LOGS = 0;
+      if (ENABLE_BASIC_SEGMENT_LOGS)
+        console.log("Basic segment", timeStamp,
+                  ", NodeName:", node.nodeName,
+                  ", boundingRect:", boundingRect,
+                  ", innerText:", innerText,
+                  ", TextContent:", textContent,
+                  ", WholeText:", wholeText,
+                  ", outerHTML:", outerHtml,
+                 // ", Style:", style
+                    );
+      // TODO: pass all the info that we want to store
+      logBasicSegment(node.nodeName, innerText, textContent, wholeText,
+          style, boundingRect, timeStamp, outerHtml);
+    }
+
+    const ENABLE_BASIC_SEGMENTATION = true;
+    if(ENABLE_BASIC_SEGMENTATION){
+      window.onload = function(){
+        var basicSegments = segments(document.body);
+        // console.log(basicSegments);
+        for (var node of basicSegments){
+          logBasicSegmentDetails(node);
+        }
+      }
+    }
+    // var rsegs = segs.map(s => resolveSegmentOld(s));
+    // console.log(rsegs);
+    // fathom.clusters(rsegs, 6);
+
+    /* Segmentation algo 2 (old method) - End */
+    /******************************************/
 
   } + "());";
 }
