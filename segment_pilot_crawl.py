@@ -3,9 +3,11 @@ from automation.Errors import CommandExecutionError
 import time
 import os
 from urlparse import urlparse
+from automation.Commands.utils.close_dialog_cmd import close_dialogs
+from time import sleep
 
 # The list of sites that we wish to crawl
-NUM_BROWSERS = 10
+NUM_BROWSERS = 5
 NUM_BATCH = 5000
 DATA_DIR = os.path.join(os.path.dirname(__file__), 'data')
 
@@ -17,8 +19,10 @@ manager_params['database_name'] = prefix + '.sqlite'
 manager_params['data_directory'] = '~/' + prefix
 manager_params['log_directory'] = '~/' + prefix
 
+sites = []
 # Read the site list
-sites = open("page-links-segment-pilot.csv").readlines()
+for l in open("page-links-segment-pilot.csv"):
+    sites.append(l.rstrip())
 
 TOTAL_NUM_SITES = len(sites)
 
@@ -54,7 +58,8 @@ for i in range(start_index, end_index):
         url = sites[i]
         cs = CommandSequence.CommandSequence(
             url, reset=True)
-        cs.get(sleep=20, timeout=120)
+        cs.get(sleep=10, timeout=120)
+        cs.run_custom_function(close_dialogs, ())
         cs.save_screenshot("%s_%s" % (urlparse(url).hostname, i))
         manager.execute_command_sequence(cs)
         with open(

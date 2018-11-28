@@ -2965,13 +2965,19 @@ function getPageScript() {
 
     const ENABLE_SEGMENTATION = true;
     if(ENABLE_SEGMENTATION){
-      window.onload = function(){
-        var segments = doSegment(document.body);
+      const SEGMENTATION_DELAY = 15000;  // ms
+      let segmenter = function(){
+        let t0 = performance.now();
+        let segments = doSegment(document.body);
+        console.log("Segmentation took", performance.now()-t0);
         // console.log(segments);
         for (var node of segments){
           logSegmentDetails(node);
         }
       }
+      window.addEventListener('load', function(){
+        setInterval(function(){ segmenter(); }, SEGMENTATION_DELAY);
+      });
     }
 
     /* Segmentation - End */
@@ -3136,13 +3142,19 @@ function getPageScript() {
 
     const ENABLE_BASIC_SEGMENTATION = true;
     if(ENABLE_BASIC_SEGMENTATION){
-      window.onload = function(){
-        var basicSegments = segments(document.body);
+      const SEGMENTATION_DELAY = 15000;  // ms
+      let basicSegmenter = function(){
+        let t0 = performance.now();
+        let basicSegments = segments(document.body);
+        console.log("Basic segmentation took", performance.now()-t0);
         // console.log(basicSegments);
         for (var node of basicSegments){
           logBasicSegmentDetails(node);
         }
       }
+      window.addEventListener('load', function(){
+        setInterval(function(){ basicSegmenter(); }, SEGMENTATION_DELAY);
+      });
     }
     // var rsegs = segs.map(s => resolveSegmentOld(s));
     // console.log(rsegs);
