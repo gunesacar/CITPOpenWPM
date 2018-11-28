@@ -36,23 +36,6 @@ exports.run = function(crawlID, testing) {
         loggingDB.saveRecord("mutations", update);
       }
 
-      function processSegments(data) {
-        var update = {};
-        update["crawl_id"] = crawlID;
-        update["node_name"] = loggingDB.escapeString(data.nodeName);
-        update["top"] = loggingDB.escapeString(data.top);
-        update["left"] = loggingDB.escapeString(data.left);
-        update["width"] = loggingDB.escapeString(data.width);
-        update["height"] = loggingDB.escapeString(data.height);
-        update["inner_text"] = loggingDB.escapeString(data.innerText);
-        update["text_content"] = loggingDB.escapeString(data.textContent);
-        update["whole_text"] = loggingDB.escapeString(data.wholeText);
-        update["outer_html"] = loggingDB.escapeString(data.outerHtml);
-        update["style"] = loggingDB.escapeString(data.style);
-        update["time_stamp"] = data.mutationTimeStamp;
-        loggingDB.saveRecord("segments", update);
-      }
-
       function processBasicSegments(data) {
         var update = {};
         update["crawl_id"] = crawlID;
@@ -67,7 +50,7 @@ exports.run = function(crawlID, testing) {
         update["outer_html"] = loggingDB.escapeString(data.outerHtml);
         update["style"] = loggingDB.escapeString(data.style);
         update["time_stamp"] = data.mutationTimeStamp;
-        loggingDB.saveRecord("basic_segments", update);
+        loggingDB.saveRecord("segments", update);
       }
 
       function processCallsAndValues(data) {
