@@ -326,8 +326,8 @@ function getPageScript() {
     }
 
     // For mutation summaries
-    function logMutation(logType, nodeName, nodeId, innerText, textContent,
-        wholeText, visible, style, boundingRect, timeStamp, attrName, oldValue, newValue) {
+    function logMutation(logType, nodeName, nodeId, innerText,
+        visible, style, boundingRect, timeStamp, attrName, oldValue, newValue) {
       if(inLog)
         return;
       inLog = true;
@@ -348,8 +348,6 @@ function getPageScript() {
           left: Math.round(boundingRect.left),
           style: style,
           innerText: innerText,
-          textContent: textContent,
-          wholeText: wholeText,
           mutationTimeStamp: timeStamp
         }
         send('logMutation', msg);
@@ -362,7 +360,7 @@ function getPageScript() {
     }
 
     // For segmentation results
-    function logBasicSegment(nodeName, innerText, textContent, wholeText, style, boundingRect, timeStamp, outerHtml) {
+    function logSegment(nodeName, innerText, style, boundingRect, timeStamp, outerHtml) {
       if(inLog)
         return;
       inLog = true;
@@ -377,15 +375,13 @@ function getPageScript() {
           left: Math.round(boundingRect.left),
           style: style,
           innerText: innerText,
-          textContent: textContent,
-          wholeText: wholeText,
           outerHtml: outerHtml,
           mutationTimeStamp: timeStamp
         }
-        send('logBasicSegment', msg);
+        send('logSegment', msg);
       }
       catch(error) {
-        console.log("Unsuccessful basic segment log: " + logSegment + "-" + nodeName);
+        console.log("Unsuccessful segment log: " + logSegment + "-" + nodeName);
         logErrorToConsole(error);
       }
       inLog = false;
@@ -2226,9 +2222,7 @@ function getPageScript() {
         newValue = node.getAttribute(attrName);
       }
       let style = isTextNode ? "" : getNonDefaultStyles(node) + "";
-      let textContent = node.textContent && node.textContent.trim();
       let innerText = node.innerText === undefined? "" : node.innerText.trim();
-      let wholeText = node.wholeText === undefined? "" : node.wholeText.trim();
       const ENABLE_MUTATION_LOGS = 0
       if (ENABLE_MUTATION_LOGS)
         console.log(timeStamp, logType,
@@ -2237,8 +2231,6 @@ function getPageScript() {
                   oldValue? ", Old Value: " + oldValue : "",
                   newValue? ", New Value: " + newValue : "",
                   ", InnerText:", innerText,
-                  ", TextContent:", textContent,
-                  ", WholeText:", wholeText,
                   ", NodeId:", node.__mutation_summary_node_map_id__,
                   ", Visible:", visible,
                   ", Rect:", boundingRect,
@@ -2246,7 +2238,7 @@ function getPageScript() {
                     );
       // TODO: pass all the info that we want to store
       logMutation(logType, node.nodeName, node.__mutation_summary_node_map_id__,
-          innerText, textContent, wholeText, visible, style, boundingRect, timeStamp,
+          innerText, visible, style, boundingRect, timeStamp,
           attrName, oldValue, newValue);
     }
 
@@ -2449,37 +2441,33 @@ function getPageScript() {
       }
     };
 
-    function logBasicSegmentDetails(node){
+    function logSegmentDetails(node){
       let timeStamp = new Date().toISOString();
       let style = getNonDefaultStyles(node);
       let boundingRect = getNodeBoundingClientRect(node);
-      let textContent = node.textContent && node.textContent.trim();
       let innerText = node.innerText === undefined? "" : node.innerText.trim();
-      let wholeText = node.wholeText === undefined? "" : node.wholeText.trim();
       let outerHtml = node.outerHTML;
-      const ENABLE_BASIC_SEGMENT_LOGS = 0;
-      if (ENABLE_BASIC_SEGMENT_LOGS)
-        console.log("Basic segment", timeStamp,
+      const ENABLE_SEGMENT_LOGS = 0;
+      if (ENABLE_SEGMENT_LOGS)
+        console.log("Segment", timeStamp,
                   ", NodeName:", node.nodeName,
                   ", boundingRect:", boundingRect,
                   ", innerText:", innerText,
-                  ", TextContent:", textContent,
-                  ", WholeText:", wholeText,
                   ", outerHTML:", outerHtml,
                  // ", Style:", style
                     );
       // TODO: pass all the info that we want to store
-      logBasicSegment(node.nodeName, innerText, textContent, wholeText,
+      logSegment(node.nodeName, innerText,
           style, boundingRect, timeStamp, outerHtml);
     }
 
-    const ENABLE_BASIC_SEGMENTATION = true;
-    if(ENABLE_BASIC_SEGMENTATION){
+    const ENABLE_SEGMENTATION = true;
+    if(ENABLE_SEGMENTATION){
       window.onload = function(){
-        var basicSegments = segments(document.body);
+        var allSegments = segments(document.body);
         // console.log(basicSegments);
-        for (var node of basicSegments){
-          logBasicSegmentDetails(node);
+        for (var node of allSegments){
+          logSegmentDetails(node);
         }
       }
     }

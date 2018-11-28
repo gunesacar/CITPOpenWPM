@@ -173,8 +173,6 @@ CREATE TABLE IF NOT EXISTS mutations(
     height INTEGER,
     style TEXT,
     inner_text TEXT,
-    text_content TEXT,
-    whole_text TEXT,
     time_stamp TEXT NOT NULL
 );
 
@@ -191,8 +189,6 @@ CREATE TABLE IF NOT EXISTS segments(
     height INTEGER,
     style TEXT,
     inner_text TEXT,
-    text_content TEXT,
-    whole_text TEXT,
     outer_html TEXT,
     time_stamp TEXT NOT NULL
 );
