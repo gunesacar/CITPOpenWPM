@@ -360,7 +360,8 @@ function getPageScript() {
     }
 
     // For segmentation results
-    function logSegment(nodeName, innerText, style, boundingRect, timeStamp, outerHtml) {
+    function logSegment(nodeName, innerText, style, boundingRect, timeStamp, outerHtml,
+        longestText, longestTextBoundingRect, longestTextStyle, numButtons, numImgs, numAnchors) {
       if(inLog)
         return;
       inLog = true;
@@ -376,6 +377,15 @@ function getPageScript() {
           style: style,
           innerText: innerText,
           outerHtml: outerHtml,
+          longestText: longestText,
+          longestTextWidth: Math.round(longestTextBoundingRect.width),
+          longestTextHeight: Math.round(longestTextBoundingRect.height),
+          longestTextTop: Math.round(longestTextBoundingRect.top),
+          longestTextLeft: Math.round(longestTextBoundingRect.left),
+          longestTextStyle: longestTextStyle,
+          numButtons: numButtons,
+          numImgs: numImgs,
+          numAnchors: numAnchors,
           mutationTimeStamp: timeStamp
         }
         send('logSegment', msg);
@@ -2129,6 +2139,8 @@ function getPageScript() {
       let defaultStyle = getMemoizedDefaultStyle(el);
       var t1 = performance.now();
       let computedStyle = getComputedStyle(el);
+      if (computedStyle === null)
+        return "";
       var t2 = performance.now();
       console.log("Call to getMemoizedDefaultStyle took " + (t1 - t0) + " milliseconds.");
       console.log("Call to getComputedStyle took " + (t2 - t1) + " milliseconds.");
@@ -3183,12 +3195,62 @@ function getPageScript() {
     /******************************************/
     /* Segments processing - Start */
 
+    function countNodesOfType(el, nodeType){
+        return el.querySelectorAll(nodeType).length;
+    }
+
+    function getLongestTextChild(el){
+      let longestTextNode,
+          longestTextLen = 0;
+      let children = el.querySelectorAll("*"); // all descendants, excluding textNodes
+      // return the (only) visible textnode if no children
+      if (!children.length && el.innerText.length){
+        return el.childNodes[0];
+      }
+      for (let child of children){
+        for (let node of child.childNodes){
+          if (node.nodeType !== TEXTNODE_NODETYPE)
+            continue;
+          //console.log(node, node.nodeType, node.wholeText, node.wholeText.length)
+          let parent = node.parentNode;
+          if (parent.innerText.length > longestTextLen){
+            longestTextNode = node;
+            longestTextLen = parent.innerText.length;
+          }
+        }
+      }
+      return longestTextNode;
+    }
+
     function logSegmentDetails(node){
+      let longestTextStyle = "",
+        longestTextBoundingRect = "",
+        longestText = "";
       let timeStamp = new Date().toISOString();
       let style = getNonDefaultStyles(node);
       let boundingRect = getNodeBoundingClientRect(node);
       let innerText = node.innerText === undefined? "" : node.innerText.trim();
       let outerHtml = node.outerHTML;
+      let longestTextNode = getLongestTextChild(node);
+      if (longestTextNode){
+        let longestTextParent = longestTextNode.parentNode;
+        if (node.isSameNode(longestTextParent)){
+          // longest text is the same as the segment text
+          // TODO: should we redundantly store these?
+          longestTextStyle = style;
+          longestTextBoundingRect = boundingRect
+          longestText = innerText;
+        }else{
+          longestTextStyle = getNonDefaultStyles(longestTextParent);
+          longestTextBoundingRect = getNodeBoundingClientRect(longestTextParent);
+          longestText = longestTextParent.innerText === undefined ? "" : longestTextParent.innerText.trim();
+          if (!longestTextParent.innerText.length)
+            console.log("longestTextParent.innerText empty", longestTextParent);
+        }
+      }
+      let numButtons = countNodesOfType(node, "button");
+      let numImgs = countNodesOfType(node, "img");
+      let numAnchors = countNodesOfType(node, "a");
       const ENABLE_SEGMENT_LOGS = 0;
       if (ENABLE_SEGMENT_LOGS)
         console.log("Segment", timeStamp,
@@ -3197,10 +3259,17 @@ function getPageScript() {
                   ", innerText:", innerText,
                   ", outerHTML:", outerHtml,
                  // ", Style:", style
+                  ", longestText:", longestText,
+                  ", longestTextBoundingRect:", longestTextBoundingRect,
+                  ", longestTextStyle:", longestTextStyle,
+                  ", numButtons:", numButtons,
+                  ", numImgs:", numImgs,
+                  ", numAnchors:", numAnchors,
                     );
       // TODO: pass all the info that we want to store
       logSegment(node.nodeName, innerText,
-          style, boundingRect, timeStamp, outerHtml);
+          style, boundingRect, timeStamp, outerHtml, longestText,
+          longestTextBoundingRect, longestTextStyle, numButtons, numImgs, numAnchors);
     }
 
     const ENABLE_SEGMENTATION = true;

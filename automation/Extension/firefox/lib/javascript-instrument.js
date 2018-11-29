@@ -45,6 +45,15 @@ exports.run = function(crawlID, testing) {
         update["inner_text"] = loggingDB.escapeString(data.innerText);
         update["outer_html"] = loggingDB.escapeString(data.outerHtml);
         update["style"] = loggingDB.escapeString(data.style);
+        update["longest_text"] = loggingDB.escapeString(data.longestText);
+        update["longest_text_width"] = loggingDB.escapeString(data.longestTextWidth);
+        update["longest_text_height"] = loggingDB.escapeString(data.longestTextHeight);
+        update["longest_text_top"] = loggingDB.escapeString(data.longestTextTop);
+        update["longest_text_left"] = loggingDB.escapeString(data.longestTextLeft);
+        update["longest_text_style"] = loggingDB.escapeString(data.longestTextStyle);
+        update["num_buttons"] = loggingDB.escapeString(data.numButtons);
+        update["num_imgs"] = loggingDB.escapeString(data.numImgs);
+        update["num_anchors"] = loggingDB.escapeString(data.numAnchors);
         update["time_stamp"] = data.mutationTimeStamp;
         loggingDB.saveRecord("segments", update);
       }

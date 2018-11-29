@@ -190,5 +190,14 @@ CREATE TABLE IF NOT EXISTS segments(
     style TEXT,
     inner_text TEXT,
     outer_html TEXT,
+    longest_text TEXT,
+    longest_text_width INTEGER,
+    longest_text_height INTEGER,
+    longest_text_top INTEGER,
+    longest_text_left INTEGER,
+    longest_text_style TEXT,
+    num_buttons INTEGER,
+    num_imgs INTEGER,
+    num_anchors TEXT,
     time_stamp TEXT NOT NULL
 );
