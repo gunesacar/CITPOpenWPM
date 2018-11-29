@@ -190,7 +190,8 @@ class TestExtension(OpenWPMTest):
             item = (row['script_url'], row['symbol'], row['operation'],
                     row['value'], row['arguments'])
             observed_rows.add(item)
-        assert CANVAS_CALLS == observed_rows
+        for canvas_call in CANVAS_CALLS:
+            assert canvas_call in observed_rows
 
     def test_extension_gets_correct_visit_id(self):
         manager_params, browser_params = self.get_config()
