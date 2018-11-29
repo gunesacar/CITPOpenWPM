@@ -2328,6 +2328,37 @@ function getPageScript() {
     ];
     const ignoredElements = ['script', 'style', 'noscript', 'br', 'hr'];
 
+    var getRandomSubarray = function(arr, size) {
+        var shuffled = arr.slice(0), i = arr.length, temp, index;
+        while (i--) {
+            index = Math.floor((i + 1) * Math.random());
+            temp = shuffled[index];
+            shuffled[index] = shuffled[i];
+            shuffled[i] = temp;
+        }
+        return shuffled.slice(0, size);
+    };
+
+    var elementCombinations = function(arguments) {
+      var r = [],
+        arg = arguments,
+        max = arg.length - 1;
+
+      function helper(arr, i) {
+        for (var j = 0, l = arg[i].length; j < l; j++) {
+          var a = arr.slice(0);
+          a.push(arg[i][j])
+          if (i === max) {
+            r.push(a);
+          } else
+            helper(a, i + 1);
+        }
+      }
+      helper([], 0);
+
+      return r.length === 0 ? arguments : r;
+    };
+
     var getVisibleChildren = function(element) {
       if (element) {
         var children = Array.from(element.children);
@@ -2566,9 +2597,11 @@ function getPageScript() {
       }
 
       var style = window.getComputedStyle(element);
+
       if (style == null){
         return false;
       }
+
       if (style.visibility === 'hidden' || style.visibility === 'collapse') {
         return false;
       }
@@ -2692,6 +2725,24 @@ function getPageScript() {
         results.push(query.snapshotItem(i));
       }
       return results;
+    };
+
+    var getXPathTo = function(element) {
+      if (element.id !== '')
+        return 'id("' + element.id + '")';
+      if (element === document.body)
+        return element.tagName;
+
+      var ix = 0;
+      var siblings = element.parentNode.childNodes;
+      for (var i = 0; i < siblings.length; i++) {
+        var sibling = siblings[i];
+        if (sibling === element)
+          return getXPathTo(element.parentNode) + '/' + element.tagName + '[' + (
+            ix + 1) + ']';
+        if (sibling.nodeType === 1 && sibling.tagName === element.tagName)
+          ix++;
+      }
     };
 
     var getChildren = function(n, skipMe) {
@@ -3109,6 +3160,533 @@ function getPageScript() {
     /******************************************/
 
     /******************************************/
+    /* dismiss_dialogs.js - Start */
+
+    /* This file is used to locate the div element of a web page that might contain
+    close buttons to dismiss a modal dialog */
+
+    // Does the element also have the middle element?
+    var checkInCenter = function(element) {
+        var centerElement = document.elementFromPoint(window.innerWidth / 2, window.innerHeight / 2);
+        return element.contains(centerElement);
+    };
+
+
+    // Given a list of elements, find one that has the largest z-index
+    var maxZindex = function(element_list) {
+        var max = -99999999;
+        var element;
+
+        for (var i = 0; i < element_list.length; i++) {
+            var zindex = window.getComputedStyle(element_list[i]).getPropertyValue('z-index');
+            if (+zindex > +max) {
+                max = zindex;
+                element = element_list[i];
+            }
+        }
+
+        return element;
+    };
+
+
+    // Given an element and a parent element (not necessarily immediate parent),
+    // this function returns true if none of the elements between itself and this
+    // parent have z-index values set to a value other than 'auto'
+    var domZindexCheck = function(element, parent_element) {
+        if (element == parent_element) {
+            return true;
+        } else {
+            var parent = element.parentElement;
+
+            while (parent != parent_element) {
+                if (window.getComputedStyle(parent).getPropertyValue('z-index') != 'auto') {
+                    return false;
+                }
+
+                parent = parent.parentElement;
+            }
+
+            return true;
+        }
+    };
+
+
+    // Calls the above function on a list of elements and a given parent element
+    var getElementsForCheck = function(element_list, parent_element) {
+        var result = [];
+
+        for (var i = 0; i < element_list.length; i++) {
+            if (domZindexCheck(element_list[i], parent_element)) {
+                result.push(element_list[i]);
+            }
+        }
+
+        return result;
+    };
+
+
+    // Returns a list of divs on the web page that are visible, have a non-static
+    // 'position' and a z-index set to not 'auto'
+    // Note that z-index values lose their meaning when position is set to static
+    // Only considers those divs with position z-index values
+    var getDivs = function() {
+        var result = [];
+        element_list = document.querySelectorAll('div');
+
+        for (var i = 0; i < element_list.length; i++) {
+            var element = element_list[i];
+            var style = window.getComputedStyle(element);
+            if (style == null)
+              continue
+            var display = style.getPropertyValue('display') != 'none';
+            var visibility = style.getPropertyValue('visibility') == 'visible';
+            var position = style.getPropertyValue('position') != 'static';
+            var zindex = style.getPropertyValue('z-index');
+            var inCenter = checkInCenter(element);
+
+            if (display && visibility && position && zindex != 'auto' && +zindex > 0 && inCenter) {
+                var height = element.offsetHeight;
+                var width = element.offsetWidth;
+
+                if (+height > 150 && +width > 150) {
+                    result.push(element);
+                }
+            }
+        }
+
+        return result;
+    };
+
+    // Repeatedly filter the list of divs as extracted above until we know it is
+    // the element on 'top'
+    var getPopupContainer = function() {
+      var divs = getDivs();
+      var parent = document.body;
+      var element;
+
+      while (divs.length != 0) {
+          var elements = getElementsForCheck(divs, parent);
+
+          if (elements.length == 0) {
+              break;
+          }
+
+          element = maxZindex(elements);
+
+          divs = divs.filter(x => x != element && element.contains(x))
+          parent = element;
+      }
+
+      if (element && element.children.length == 1 && element.children[0].tagName.toLowerCase() == 'iframe') {
+          element = element.children[0];
+      }
+
+      return element;
+    };
+
+    var closeDialog = function(element) {
+      var closeElements = ['button', 'img', 'span', 'a', 'div'];
+      var result = [];
+
+      for (var ce of closeElements) {
+        var elements = getElementsByXPath('.//' + ce + '[@*[contains(.,\'close\') and not(contains(.,\'/\'))]]', element);
+        elements = elements.concat(getElementsByXPath('.//' + ce + '[@*[contains(.,\'Close\') and not(contains(.,\'/\'))]]', element));
+        elements = elements.concat(getElementsByXPath('.//' + ce + '[@*[contains(.,\'dismiss\') and not(contains(.,\'/\'))]]', element));
+        elements = elements.concat(getElementsByXPath('.//' + ce + '[@*[contains(.,\'Dismiss\') and not(contains(.,\'/\'))]]', element));
+
+        elements = elements.concat(getElementsByXPath('.//' + ce + '[text()[contains(., \'Agree\')]]', element));
+        elements = elements.concat(getElementsByXPath('.//' + ce + '[text()[contains(., \'agree\')]]', element));
+
+        result = result.concat(elements.filter(x => isShown(x) && (x.style.offsetHeight !== 0 || x.style.offsetWidth !== 0)));
+      }
+
+      result = parentRemoval(result);
+
+      for (var r of result) {
+        try {
+          r.click();
+        }
+        catch (err) {
+
+        }
+      }
+    };
+
+    /* dismiss_dialogs.js - End */
+    /******************************************/
+
+    /******************************************/
+    /* extract_product_options.js - Start */
+
+    const excludedWords = ['instagram', 'youtube', 'twitter', 'facebook', 'login',
+      'log in', 'signup', 'sign up', 'signin', 'sign in',
+      'share', 'account', 'add', 'review', 'submit', 'related',
+      'show ', 'shop ', 'upload ', 'code ', 'view details',
+      'choose options', 'cart', 'loading', 'cancel', 'view all',
+      'description', 'additional information', 'ship ', '$',
+      '%', 'save as', 'out ', 'wishlist', 'increment', 'buy',
+      'availability', 'decrement', 'pick ', 'video', 'plus', 'minus', 'quantity',
+      'slide', 'address', 'learn more', 'at ', 'reserve', 'save'
+    ];
+
+    const winWidth = window.innerWidth;
+
+    var parseColor = function(color) {
+      var m = color.match(/^rgb\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)$/i);
+      if (m) {
+        return [m[1], m[2], m[3], '1'];
+      }
+
+      m = color.match(
+        /^rgba\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*((0.)?\d+)\s*\)$/i);
+      if (m) {
+        return [m[1], m[2], m[3], m[4]];
+      }
+    };
+
+    var hasBorder = function(element, recurseChildren = true) {
+
+      var borderCheck = function(borderStyle, borderColor) {
+        return borderStyle.toLowerCase() !== 'none';
+        //&& parseFloat(parseColor(borderColor)[3]) > 0.0;
+      };
+
+      var elements = [element];
+
+      if (recurseChildren) {
+        elements = elements.concat(Array.from(element.querySelectorAll('*')));
+      }
+
+      for (var child of elements) {
+        var style = window.getComputedStyle(child);
+        if (borderCheck(style.borderLeftStyle, style.borderLeftColor) &&
+          borderCheck(style.borderRightStyle, style.borderRightColor)
+        ) {
+          return true;
+        } else {
+          var bstyle = window.getComputedStyle(child, ':before');
+          if (borderCheck(bstyle.borderLeftStyle, bstyle.borderLeftColor) &&
+            borderCheck(bstyle.borderRightStyle, bstyle.borderRightColor)
+          ) {
+            return true;
+          } else {
+            var astyle = window.getComputedStyle(child, ':after');
+            if (borderCheck(astyle.borderLeftStyle, astyle.borderLeftColor) &&
+              borderCheck(astyle.borderRightStyle, astyle.borderRightColor)
+            ) {
+              return true;
+            } else {
+              if (style.boxShadow !== 'none') {
+                return true;
+              }
+            }
+          }
+        }
+      }
+
+      return false;
+    };
+
+    var hasIgnoredText = function(text) {
+      if (text) {
+        text = text.toLowerCase();
+
+        for (var ew of excludedWords) {
+          if (text.includes(ew)) {
+            return true;
+          }
+        }
+
+        return false;
+      } else {
+        return false;
+      }
+    };
+
+    var hasExcludedElements = function(element) {
+      var elements = {
+        'select': null,
+        'form': null,
+        'iframe': null,
+        'style': null,
+        'input': function(x) {
+          return x.type.toLowerCase() !== 'radio' && x.type.toLowerCase() !==
+            'checkbox'
+        },
+        'dl': null,
+        'ol': null,
+        'ul': null,
+        'table': null
+      };
+
+      for (var e in elements) {
+        if (elements.hasOwnProperty(e)) {
+          var children = element.querySelectorAll(e);
+          var f = elements[e];
+
+          if (f) {
+            children = Array.from(children).filter(n => f(n));
+          }
+
+          if (children.length > 0) {
+            return true;
+          }
+        }
+      }
+
+      return false;
+    };
+
+    var hasRequiredDisplay = function(element) {
+      if (element) {
+        var style = window.getComputedStyle(element);
+
+        if (style.display === 'inline-block' || style.float === 'left') {
+          return true;
+        } else {
+          var pStyle = window.getComputedStyle(element.parentElement);
+
+          if (pStyle.display === 'flex' || pStyle.float === 'left') {
+            return true;
+          } else {
+            return false;
+          }
+        }
+
+      } else {
+        return false;
+      }
+    };
+
+    var hasHeight = function(rect, lower, upper) {
+      var height = rect.bottom - rect.top;
+      return (height > lower && height < upper);
+    };
+
+    var hasWidth = function(rect, lower, upper) {
+      var width = rect.right - rect.left;
+      return (width > lower && width < upper);
+    };
+
+    var hasLocation = function(rect) {
+      return (rect.left >= 0.3 * winWidth && rect.left <= winWidth && rect.bottom <=
+        900 && rect.top >= 200);
+    };
+
+    var getToggleAttributes = function() {
+      var liElements = Array.from(document.body.getElementsByTagName('li'));
+      liElements = liElements.filter(element => element.getElementsByTagName('ul')
+        .length === 0 && element.getElementsByTagName('ol').length === 0);
+
+      var labelElements = Array.from(document.body.getElementsByTagName('label'));
+      var aElements = Array.from(document.body.getElementsByTagName('a'));
+      var spanElements = Array.from(document.body.getElementsByTagName('span'));
+      var divElements = Array.from(document.body.getElementsByTagName('div'));
+
+      var toggleElements = liElements.concat(labelElements).concat(aElements).concat(
+        spanElements).concat(divElements);
+      toggleElements = toggleElements.filter(element => isShown(element));
+
+      toggleElements = toggleElements.filter(element => filterText(element.innerText)
+        .replace(/[^\x00-\xFF]/g, '') !==
+        '1');
+
+      toggleElements = toggleElements.filter(element => !hasIgnoredText(element.innerText +
+        ' ' + element.getAttribute('class')));
+
+      toggleElements = toggleElements.filter(element => hasRequiredDisplay(
+        element));
+
+      toggleElements = toggleElements.filter(element => !hasExcludedElements(
+        element));
+
+      toggleElements = toggleElements.filter(element => element.getElementsByTagName(
+        'a').length <= 1);
+      toggleElements = toggleElements.filter(element => element.getElementsByTagName(
+        'button').length <= 1);
+
+      toggleElements = toggleElements.filter(element => hasBorder(element));
+
+      toggleElements = toggleElements.filter(element => {
+        var rect = element.getBoundingClientRect();
+        return hasHeight(rect, 21, 110) && hasWidth(rect, 5, 270) &&
+          hasLocation(rect);
+      });
+
+      toggleElements = clusters(parentRemoval(toggleElements, 'li'), 4);
+
+      for (var c of toggleElements) {
+        if (c[0].tagName.toLowerCase() === 'li') {
+          var parent = c[0].parentElement;
+          var children = getVisibleChildren(parent);
+          children = children.filter(child => !c.includes(child));
+
+          if (children.length !== 0) {
+            var index = toggleElements.indexOf(c);
+            c = c.concat(children);
+            if (index !== -1) {
+              toggleElements[index] = c;
+            }
+          }
+        }
+      }
+
+      return toggleElements;
+    };
+
+    var getSelectAttributes = function() {
+      var selectElements = Array.from(document.body.getElementsByTagName('select'));
+      selectElements = selectElements.filter(se => isShown(se));
+
+      selectElements = selectElements.filter(se => filterText(se.innerText) !==
+        '' && filterText(se.options[se.selectedIndex].innerText) !== '1');
+
+      selectElements = selectElements.filter(se => hasLocation(se.getBoundingClientRect()));
+
+      var result = [];
+      for (var se of selectElements) {
+        var res = [];
+        var options = se.getElementsByTagName('option');
+
+        for (var opt of options) {
+          res.push([se, opt]);
+        }
+
+        result.push(res);
+      }
+
+      return result;
+    };
+
+    var getNonStandardSelectAttributes = function(excludedElements) {
+      var labelElements = Array.from(document.body.getElementsByTagName('label'));
+      var aElements = Array.from(document.body.getElementsByTagName('a'));
+      var spanElements = Array.from(document.body.getElementsByTagName('span'));
+      var divElements = Array.from(document.body.getElementsByTagName('div'));
+      var buttonElements = Array.from(document.body.getElementsByTagName('button'));
+
+      var triggerElements = labelElements.concat(aElements).concat(spanElements).concat(
+        divElements).concat(buttonElements);
+      triggerElements = triggerElements.filter(te => isShown(te));
+
+      triggerElements = triggerElements.filter(te => filterText(te.innerText) !==
+        '' && filterText(te.innerText).replace(/[^\x00-\xFF]/g, '') !== '1' &&
+        !hasIgnoredText(te.innerText)
+      );
+
+      triggerElements = triggerElements.filter(te => {
+        var rect = te.getBoundingClientRect();
+        return hasHeight(rect, 10, 100) && hasLocation(rect) && hasWidth(rect,
+          5, 600);
+      });
+
+      triggerElements = triggerElements.filter(te => hasBorder(te, false));
+
+      triggerElements = triggerElements.filter(te => te.getElementsByTagName('a')
+        .length <= 1);
+
+      triggerElements = triggerElements.filter(te => !te.style.position !==
+        'fixed');
+
+      triggerElements = parentRemoval(triggerElements);
+
+      triggerElements = triggerElements.filter(te => excludedElements.map(ee => !
+        ee.contains(te) && !te.contains(ee)).every(val => val === true));
+
+
+      var ulElements = Array.from(document.body.getElementsByTagName('ul'));
+      var olElements = Array.from(document.body.getElementsByTagName('ol'));
+      var dlElements = Array.from(document.body.getElementsByTagName('dl'));
+
+      var optionLists = ulElements.concat(olElements).concat(dlElements);
+      optionLists = optionLists.filter(element => !isShown(element) && element.children
+        .length > 0);
+
+      var result = [];
+
+      for (var te of triggerElements) {
+        for (var optList of optionLists) {
+          if ([te].concat(getSiblings(te)).some(ele => ele.contains(optList))) {
+            var res = [];
+
+            for (var child of optList.children) {
+              res.push([te, child]);
+            }
+
+            result.push(res);
+          }
+        }
+      }
+
+      return result;
+    };
+
+    var mapXPath = function(list) {
+      return list.map(element => (element instanceof Array) ? mapXPath(element) :
+        getXPathTo(element));
+    };
+
+    var playAttributes = function() {
+      var te = getToggleAttributes();
+      var se = getSelectAttributes();
+
+      if (se.length === 0) {
+        se = getNonStandardSelectAttributes(flattenDeep(te));
+      }
+
+      var attributes = te.concat(se);
+      attributes = mapXPath(attributes);
+
+      if (attributes.length === 0) {
+        return;
+      }
+
+      var combinations = elementCombinations(attributes);
+      var randomCombinations = getRandomSubarray(combinations, 5);
+
+      var waitTime = 3000;
+      randomCombinations.forEach(function(rc, ind) {
+
+        setTimeout(function() {
+          console.log(rc);
+          try {
+            rc.forEach(function(el, index) {
+
+              setTimeout(function() {
+                console.log(el);
+                try {
+                  if (el instanceof Array) {
+                    getElementsByXPath(el[0], document.documentElement)[0].click();
+                    getElementsByXPath(el[1], document.documentElement)[0].click();
+                  } else {
+                    var element = getElementsByXPath(el, document
+                      .documentElement)[
+                      0];
+                    if (element.tagName.toLowerCase() === 'li' &&
+                      element.children.length === 1) {
+                      element.children[0].click();
+                    }
+                    else {
+                      element.click();
+                    }
+                  }
+                } catch (err) {
+                  console.log(err);
+                }
+              }, index * waitTime);
+
+            });
+          } catch (err1) {
+            console.log(err1);
+          }
+        }, ind * (randomCombinations.length) * (waitTime + 2000));
+      });
+    };
+
+    /* extract_product_options.js - End */
+    /******************************************/
+
+    /******************************************/
     /* Segmentation algo 2 (old method) - Start */
     var allIgnoreChildren = function(element) {
       if (element.children.length === 0) {
@@ -3213,7 +3791,7 @@ function getPageScript() {
             continue;
           //console.log(node, node.nodeType, node.wholeText, node.wholeText.length)
           let parent = node.parentNode;
-          if (parent.innerText.length > longestTextLen){
+          if (parent.innerText && (parent.innerText.length > longestTextLen)){
             longestTextNode = node;
             longestTextLen = parent.innerText.length;
           }
@@ -3272,15 +3850,37 @@ function getPageScript() {
           longestTextBoundingRect, longestTextStyle, numButtons, numImgs, numAnchors);
     }
 
-    const ENABLE_SEGMENTATION = true;
-    if(ENABLE_SEGMENTATION){
-      window.onload = function(){
-        var allSegments = segments(document.body);
-        // console.log(allSegments);
-        for (var node of allSegments){
-          logSegmentDetails(node);
-        }
+    function segmentAndRecord(element){
+      var allSegments = segments(element);
+      // console.log(allSegments);
+      for (var node of allSegments){
+        logSegmentDetails(node);
       }
+    }
+
+    window.onload = function(){
+      const TIME_BEFORE_SEGMENT = 1000;
+      const TIME_BEFORE_CLOSING_DIALOGS = 10000;
+      // start segmenting 1s after page load
+      setTimeout(() => {
+        console.log("Will segment the page body");
+        let t0 = performance.now();
+        segmentAndRecord(document.body);
+        console.log("Segmentation took", (performance.now()-t0))
+      }, TIME_BEFORE_SEGMENT);
+
+      // close dialog 10s after page load
+      setTimeout(() => {
+        console.log("Will check for dialogs");
+        let popup = getPopupContainer();
+        if (popup){
+          console.log("Found a dialog, will segment and then close the dialog");
+          segmentAndRecord(popup);
+          closeDialog(popup);
+        }
+        console.log("Will interact with the product attributes");
+        playAttributes();
+      }, TIME_BEFORE_CLOSING_DIALOGS);
     }
 
     /* Segments processing - End */
