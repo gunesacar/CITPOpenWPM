@@ -2267,8 +2267,8 @@ function getPageScript() {
 
     /******************************************/
     /* Common JS - Start */
-    const blockElements = ['div', 'body', 'section', 'article', 'aside', 'nav',
-      'header', 'footer', 'main', 'form', 'fieldset'
+    const blockElements = ['div', 'section', 'article', 'aside', 'nav',
+      'header', 'footer', 'main', 'form', 'fieldset', 'table'
     ];
     const ignoredElements = ['script', 'style', 'noscript', 'br', 'hr'];
 
@@ -2320,16 +2320,6 @@ function getPageScript() {
       return result;
     };
 
-    var getElementWidth = function(element) {
-      var rect = element.getBoundingClientRect();
-      return rect.right - rect.left;
-    };
-
-    var getElementHeight = function(element) {
-      var rect = element.getBoundingClientRect();
-      return rect.bottom - rect.top;
-    };
-
     var isShown = function(element) {
       var displayed = function(element, style) {
         if (!style) {
@@ -2372,8 +2362,8 @@ function getPageScript() {
         }
 
         return style.overflow !== 'hidden' && Array.from(element.childNodes).some(
-          n => n.nodeType === Node.TEXT_NODE || (n.nodeType === Node.ELEMENT_NODE &&
-            positiveSize(n)));
+          n => (n.nodeType === Node.TEXT_NODE && filterText(n.nodeValue)) || (n.nodeType === Node.ELEMENT_NODE &&
+            positiveSize(n) && window.getComputedStyle(n).display !== 'none'));
       };
 
       var getOverflowState = function(element) {
@@ -2592,17 +2582,19 @@ function getPageScript() {
     };
 
     var isPixel = function(element) {
-      var style = window.getComputedStyle(element);
-
-      var height = getElementHeight(element);
-      var width = getElementWidth(element);
+      var rect = element.getBoundingClientRect();
+      var height = rect.bottom - rect.top;
+      var width = rect.right - rect.left;
 
       return (height === 1 && width === 1);
     };
 
     var containsBlockElements = function(element) {
-      for (var child of element.children) {
-        if (blockElements.includes(child.tagName.toLowerCase())) {
+      for (var be of blockElements) {
+        var children = Array.from(element.getElementsByTagName(be));
+        children = children.filter(element => isShown(element));
+
+        if (children.length > 0) {
           return true;
         }
       }
@@ -3650,6 +3642,7 @@ function getPageScript() {
     var segments = function(element) {
       if (element && isShown(element) && !isPixel(element)) {
         var tag = element.tagName.toLowerCase();
+
         if (blockElements.includes(tag)) {
           if (!containsBlockElements(element)) {
             if (allIgnoreChildren(element)) {
@@ -3668,20 +3661,12 @@ function getPageScript() {
 
             return result;
           }
-        } else if (ignoredElements.includes(tag)) {
+        }
+        else if (ignoredElements.includes(tag)) {
           return [];
-        } else {
-          var children = [];
-          for (var be of blockElements) {
-            children = Array.from(element.getElementsByTagName(be));
-            children = children.filter(child => isShown(child));
-
-            if (children.length > 0) {
-              break;
-            }
-          }
-
-          if (children.length > 0) {
+        }
+        else {
+          if (containsBlockElements(element)) {
             var result = [];
 
             for (var child of element.children) {
@@ -3694,23 +3679,21 @@ function getPageScript() {
             return [element];
           }
         }
-      } else {
+      }
+      else {
         return [];
       }
     };
-    /*
-    var segs = segments(document.body);
-    console.log(segs);
 
-    for (var seg of segs) {
+    /*for (var seg of segs) {
       seg.style.border = '0.1em solid red';
       var fontSize = parseInt(window.getComputedStyle(seg).fontSize);
 
       if (fontSize === 0) {
         seg.style.fontSize = "10px";
       }
-    }
-    */
+    }*/
+
     /* Segmentation algo 2 (old method) - End */
     /******************************************/
 
