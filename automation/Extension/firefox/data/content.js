@@ -3828,7 +3828,7 @@ function getPageScript() {
         pageSegments = segmentAndRecord(document.body);
         observerSummary = new MutationSummary({
           callback: handleSummary, queries: [{all: true}]})
-        console.log("Segmentation took", (performance.now()-t0))
+        console.log("Segmentation took", (performance.now()-t0), "nSegments:", pageSegments.length)
       }, TIME_BEFORE_SEGMENT);
 
       // close dialog 10s after page load

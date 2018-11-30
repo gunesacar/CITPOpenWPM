@@ -3,6 +3,7 @@ from automation.Errors import CommandExecutionError
 import time
 import os
 from urlparse import urlparse
+from automation.Commands.utils.screen_capture import capture_screenshots
 
 # The list of sites that we wish to crawl
 NUM_BROWSERS = 5
@@ -56,9 +57,10 @@ for i in range(start_index, end_index):
         url = sites[i]
         cs = CommandSequence.CommandSequence(
             url, reset=True)
-        cs.get(sleep=10, timeout=240)
+        cs.get(sleep=1, timeout=30)
         # cs.run_custom_function(close_dialogs, ())
-        cs.save_screenshot("%s_%s" % (urlparse(url).hostname, i))
+        cs.run_custom_function(capture_screenshots, (60,))
+        # cs.save_screenshot("%s_%s" % (urlparse(url).hostname, i))
         manager.execute_command_sequence(cs)
         with open(
                 os.path.expanduser('~/.openwpm/current_site_index'),
