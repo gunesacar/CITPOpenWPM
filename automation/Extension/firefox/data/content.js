@@ -3744,13 +3744,25 @@ function getPageScript() {
       return longestTextNode;
     }
 
+    const MAX_RAND_INT = 2**32;
+    const GUID_ATTR_NAME = 'openwpm-dp-guid';
+    // taken from the no boundaries code
+    function addGuid(element) {
+      let guid;
+      if (element.hasAttribute(GUID_ATTR_NAME))
+        return element.getAttribute(GUID_ATTR_NAME);
+      guid = Math.floor(Math.random()*MAX_RAND_INT);
+      element.setAttribute(GUID_ATTR_NAME, guid);
+      return guid;
+    }
+
     function logSegmentDetails(node){
       let longestTextStyle = "",
         longestTextBoundingRect = "",
         longestText = "";
       let timeStamp = new Date().toISOString();
       let style = getNonDefaultStyles(node);
-      let nodeId = node.__mutation_summary_node_map_id__;
+      let nodeId = addGuid(node);
       let boundingRect = getNodeBoundingClientRect(node);
       let innerText = node.innerText === undefined? "" : node.innerText.trim();
       let outerHtml = node.outerHTML;
