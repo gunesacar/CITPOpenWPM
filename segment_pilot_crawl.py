@@ -2,7 +2,6 @@ from automation import TaskManager, CommandSequence
 from automation.Errors import CommandExecutionError
 import time
 import os
-from urlparse import urlparse
 from automation.Commands.utils.screen_capture import capture_screenshots
 
 # The list of sites that we wish to crawl
@@ -57,9 +56,12 @@ for i in range(start_index, end_index):
         url = sites[i]
         cs = CommandSequence.CommandSequence(
             url, reset=True)
-        cs.get(sleep=1, timeout=30)
+        GET_TIMEOUT = 30
+        TIME_ON_PAGE = 60
+        cs.get(sleep=1, timeout=GET_TIMEOUT)
         # cs.run_custom_function(close_dialogs, ())
-        cs.run_custom_function(capture_screenshots, (60,))
+        cs.run_custom_function(capture_screenshots, (TIME_ON_PAGE,),
+                               timeout=TIME_ON_PAGE+5)
         # cs.save_screenshot("%s_%s" % (urlparse(url).hostname, i))
         manager.execute_command_sequence(cs)
         with open(
