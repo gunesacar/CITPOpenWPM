@@ -182,6 +182,7 @@ CREATE TABLE IF NOT EXISTS segments(
     crawl_id INTEGER,
     visit_id INTEGER,
     node_name TEXT,
+    node_id INTEGER,
     visible BOOLEAN,
     top INTEGER,
     left INTEGER,

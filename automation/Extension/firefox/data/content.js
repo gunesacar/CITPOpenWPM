@@ -360,7 +360,7 @@ function getPageScript() {
     }
 
     // For segmentation results
-    function logSegment(nodeName, innerText, style, boundingRect, timeStamp, outerHtml,
+    function logSegment(nodeName, nodeId, innerText, style, boundingRect, timeStamp, outerHtml,
         longestText, longestTextBoundingRect, longestTextStyle, numButtons, numImgs, numAnchors) {
       if(inLog)
         return;
@@ -370,6 +370,7 @@ function getPageScript() {
         // Convert special arguments array to a standard array for JSONifying
         var msg = {
           nodeName: nodeName,
+          nodeId: nodeId,
           width: Math.round(boundingRect.width),
           height: Math.round(boundingRect.height),
           top: Math.round(boundingRect.top),
@@ -2254,66 +2255,9 @@ function getPageScript() {
           attrName, oldValue, newValue);
     }
 
-    function onNodeAdded(node, summary, timeStamp){
-      if ((node.nodeType == TEXTNODE_NODETYPE) && summary.added.includes(node.parentNode)){
-        console.log("Will skip the textnode, its parent is also added", node);
-        return;
-      }
-      logMutationSummary("NodeAdded", node, summary, timeStamp);
-    }
-    const EXCLUDE_NODE_REMOVED = true;  // do not process node removed events
-    function onNodeRemoved(node, summary, timeStamp){
-      if (!EXCLUDE_NODE_REMOVED)
-        logMutationSummary("NodeRemoved", node, summary, timeStamp);
-    }
-
-    function onNodeReparented(node, summary, timeStamp){
-      logMutationSummary("NodeReparented", node, summary, timeStamp);
-    }
-
-    function onNodeReordered(node, summary, timeStamp){
-      logMutationSummary("NodeReordered", node, summary, timeStamp);
-    }
-
-    function onCharacterDataChanged(node, summary, timeStamp){
-      logMutationSummary("CharacterDataChanged", node, summary, timeStamp);
-    }
-
-    function onAttrsChanged(attrChanges, summary, timeStamp){
-      for (var attrName in attrChanges){
-        var nodes = attrChanges[attrName];
-        for (var node of nodes){
-          logMutationSummary("AttributeChanged", node, summary, timeStamp, attrName);
-        }
-      }
-    }
-
-    function handleSummary(summaries) {
-      // MutationSummary returns one summary for each query - we've one query
-      let timeStamp = new Date().toISOString();
-      var summary = summaries[0];
-      summary.added.forEach(function(node){
-        onNodeAdded(node, summary, timeStamp)
-      });
-      summary.removed.forEach(function(node){
-        onNodeRemoved(node, summary, timeStamp)
-      });
-      summary.reparented.forEach(function(node){
-        onNodeReparented(node, summary, timeStamp)
-      });
-      summary.reordered.forEach(function(node){
-        onNodeReordered(node, summary, timeStamp)
-      });
-      summary.characterDataChanged.forEach(function(node){
-        onCharacterDataChanged(node, summary, timeStamp)
-      });
-      onAttrsChanged(summary.attributeChanged, summary, timeStamp);
-    }
-
     const ENABLE_MUTATION_SUMMARY = false;
     if(ENABLE_MUTATION_SUMMARY){
       window.onload = setTimeout(function(){
-        console.log("Enabling mut sum********");
         observerSummary = new MutationSummary({
           callback: handleSummary, queries: [{all: true}]});
       }, 1000);
@@ -3806,6 +3750,7 @@ function getPageScript() {
         longestText = "";
       let timeStamp = new Date().toISOString();
       let style = getNonDefaultStyles(node);
+      let nodeId = node.__mutation_summary_node_map_id__;
       let boundingRect = getNodeBoundingClientRect(node);
       let innerText = node.innerText === undefined? "" : node.innerText.trim();
       let outerHtml = node.outerHTML;
@@ -3833,6 +3778,7 @@ function getPageScript() {
       if (ENABLE_SEGMENT_LOGS)
         console.log("Segment", timeStamp,
                   ", NodeName:", node.nodeName,
+                  ", NodeId:", nodeId,
                   ", boundingRect:", boundingRect,
                   ", innerText:", innerText,
                   ", outerHTML:", outerHtml,
@@ -3845,7 +3791,7 @@ function getPageScript() {
                   ", numAnchors:", numAnchors,
                     );
       // TODO: pass all the info that we want to store
-      logSegment(node.nodeName, innerText,
+      logSegment(node.nodeName, nodeId, innerText,
           style, boundingRect, timeStamp, outerHtml, longestText,
           longestTextBoundingRect, longestTextStyle, numButtons, numImgs, numAnchors);
     }
@@ -3856,16 +3802,20 @@ function getPageScript() {
       for (var node of allSegments){
         logSegmentDetails(node);
       }
+      return allSegments;
     }
 
     window.onload = function(){
       const TIME_BEFORE_SEGMENT = 1000;
       const TIME_BEFORE_CLOSING_DIALOGS = 10000;
+      let pageSegments;  // list of segments, functions in this closure access and update this list
       // start segmenting 1s after page load
       setTimeout(() => {
         console.log("Will segment the page body");
         let t0 = performance.now();
-        segmentAndRecord(document.body);
+        pageSegments = segmentAndRecord(document.body);
+        observerSummary = new MutationSummary({
+          callback: handleSummary, queries: [{all: true}]})
         console.log("Segmentation took", (performance.now()-t0))
       }, TIME_BEFORE_SEGMENT);
 
@@ -3875,16 +3825,147 @@ function getPageScript() {
         let popup = getPopupContainer();
         if (popup){
           console.log("Found a dialog, will segment and then close the dialog");
-          segmentAndRecord(popup);
+          let popupSegment = segmentAndRecord(popup);
+          if (pageSegments)
+            pageSegments.push(popupSegment);
           closeDialog(popup);
         }
         console.log("Will interact with the product attributes");
         playAttributes();
       }, TIME_BEFORE_CLOSING_DIALOGS);
+
+      function shouldProcessMutationNode(node){
+        const excludedNodeTypes = ["SCRIPT", "STYLE", "DOCUMENT", "BODY",
+          "IFRAME", "POLYGON", "SVG", "PATH", "POLYLINE", "RECT", "BR",
+          "HTML", "HR"];
+
+        if (node.nodeType !== ELEMENT_NODETYPE || node.nodeType == TEXTNODE_NODETYPE){
+          return false;
+        }
+
+        if (excludedNodeTypes.includes(node.tagName.toUpperCase())){
+          return false;
+        }
+
+        let boundingRect = getNodeBoundingClientRect(node);
+        return inViewport(node, boundingRect);
+      }
+
+      function handleSummary(summaries) {
+        // MutationSummary returns one summary for each query - we've one query
+        let timeStamp = new Date().toISOString();
+        var summary = summaries[0];
+        //added, reparented, reordered, attrsChanged: re-segment the
+        // element's (old) segment, take snapshot(s) of the new segments
+        let nodesToResegment = summary.added.concat(summary.reparented).concat(summary.reordered);
+        for (let attrName in summary.attributeChanged){
+          nodesToResegment = nodesToResegment.concat(summary.attributeChanged[attrName])
+        }
+        nodesToResegment = nodesToResegment.filter(node => shouldProcessMutationNode(node));
+
+        let charChangedNodes = summary.characterDataChanged;
+        charChangedNodes = charChangedNodes.filter(node => shouldProcessMutationNode(node));
+        charChangedNodes = charChangedNodes.filter(node => !nodesToResegment.includes(node));
+
+        // Get the parents
+        if (nodesToResegment.length){
+          let nodesToSegment = findSegmentParents(nodesToResegment, pageSegments);
+          nodesToSegment = nodesToSegment.filter(node => shouldProcessMutationNode(node));
+          if (nodesToSegment){
+            let t0 = performance.now()
+            for (let node of nodesToSegment){
+              // call segmentation
+              let newSegments = segmentAndRecord(node);
+              if (newSegments)
+                pageSegments.push(newSegments);
+            }
+            console.log("Mutation summary segmentation took", (performance.now() - t0), nodesToSegment.size)
+          }
+        }
+        if (charChangedNodes.length){
+          let nodesToRecord = findSegmentParents(charChangedNodes, pageSegments);
+
+          nodesToRecord = nodesToRecord.filter(
+              node => shouldProcessMutationNode(node)).filter(
+                  node => !nodesToSegment.has(node));
+          // record node details
+          for (let node of nodesToRecord){
+            logSegmentDetails(node);
+          }
+        }
+      }  // end of handleSummary
     }
 
     /* Segments processing - End */
     /******************************************/
+
+    /******************************************/
+    /* Mutation processing - Start */
+
+    function onNodeAdded(node, summary, timeStamp){
+      if ((node.nodeType == TEXTNODE_NODETYPE) && summary.added.includes(node.parentNode)){
+        console.log("Will skip the textnode, its parent is also added", node);
+        return;
+      }
+      logMutationSummary("NodeAdded", node, summary, timeStamp);
+    }
+    const EXCLUDE_NODE_REMOVED = true;  // do not process node removed events
+    function onNodeRemoved(node, summary, timeStamp){
+      if (!EXCLUDE_NODE_REMOVED)
+        logMutationSummary("NodeRemoved", node, summary, timeStamp);
+    }
+
+    function onNodeReparented(node, summary, timeStamp){
+      logMutationSummary("NodeReparented", node, summary, timeStamp);
+    }
+
+    function onNodeReordered(node, summary, timeStamp){
+      logMutationSummary("NodeReordered", node, summary, timeStamp);
+    }
+
+    function onCharacterDataChanged(node, summary, timeStamp){
+      logMutationSummary("CharacterDataChanged", node, summary, timeStamp);
+    }
+
+    function onAttrsChanged(attrChanges, summary, timeStamp){
+      for (var attrName in attrChanges){
+        var nodes = new Set(attrChanges[attrName]);
+        for (var node of nodes){
+          logMutationSummary("AttributeChanged", node, summary, timeStamp, attrName);
+        }
+      }
+    }
+
+    function findSegmentParents(nodes, pageSegments){
+      // Find and return ancestors that are segments.
+      // For nodes without ancestor segments, return the node itself
+      let ancestorSegments = [];  //ancestor segments
+      let nodesWithoutAncestorSegments = [];  // nodes without ancestor segments
+      for (let node of nodes){
+        let origNode = node;
+        let parentFound = false;
+        while(node !== null){
+          if (node && pageSegments.includes(node)){
+            ancestorSegments.push(node);
+            parentFound = true;
+            break;
+          }else{
+            node = node.parentNode;
+          }
+        }
+        if (!parentFound)
+          nodesWithoutAncestorSegments.push(origNode);
+      }
+      console.log("ancestorSegments", ancestorSegments.length, ancestorSegments,
+          "nodesWithoutAncestorSegments", nodesWithoutAncestorSegments.length, nodesWithoutAncestorSegments);
+      // return combined and uniqued arrays
+      return Array.from(new Set(ancestorSegments.concat(nodesWithoutAncestorSegments)));
+    }
+
+    /* Mutation processing - End */
+    /******************************************/
+
+
 
   } + "());";
 }

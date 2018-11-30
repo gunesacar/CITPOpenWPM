@@ -38,6 +38,7 @@ exports.run = function(crawlID, testing) {
         var update = {};
         update["crawl_id"] = crawlID;
         update["node_name"] = loggingDB.escapeString(data.nodeName);
+        update["node_id"] = loggingDB.escapeString(data.nodeId);
         update["top"] = loggingDB.escapeString(data.top);
         update["left"] = loggingDB.escapeString(data.left);
         update["width"] = loggingDB.escapeString(data.width);
