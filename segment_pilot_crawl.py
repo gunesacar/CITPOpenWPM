@@ -5,7 +5,7 @@ import os
 from automation.Commands.utils.screen_capture import capture_screenshots
 
 # The list of sites that we wish to crawl
-NUM_BROWSERS = 5
+NUM_BROWSERS = 7
 NUM_BATCH = 5000
 DATA_DIR = os.path.join(os.path.dirname(__file__), 'data')
 
@@ -57,7 +57,7 @@ for i in range(start_index, end_index):
         cs = CommandSequence.CommandSequence(
             url, reset=True)
         GET_TIMEOUT = 30
-        TIME_ON_PAGE = 60
+        TIME_ON_PAGE = 160  # product interaction = 125, initial wait 10
         cs.get(sleep=1, timeout=GET_TIMEOUT)
         # cs.run_custom_function(close_dialogs, ())
         cs.run_custom_function(capture_screenshots, (TIME_ON_PAGE,),

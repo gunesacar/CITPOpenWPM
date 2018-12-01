@@ -34,7 +34,7 @@ for site in sites:
     command_sequence = CommandSequence.CommandSequence(site)
 
     # Start by visiting the page
-    command_sequence.get(sleep=1800, timeout=1800)
+    command_sequence.get(sleep=900, timeout=900)
 
     # index='**' synchronizes visits between the three browsers
     manager.execute_command_sequence(command_sequence, index='**')

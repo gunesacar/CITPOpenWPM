@@ -2158,6 +2158,25 @@ function getPageScript() {
       return JSON.stringify(nonDefaultStyle);
     }
 
+    function getComputedStyleAsString(el){
+      let t0 = performance.now();
+      let computedStyle = getComputedStyle(el);
+      if (computedStyle === null)
+        return "";
+      var t1 = performance.now();
+      //console.log("Call to getComputedStyle took " + (t1 - t0) + " milliseconds.");
+      let computedStyleObj = {};
+      let prop;  // CSS property
+      var t2 = performance.now();
+      for (let i = 0; i < computedStyle.length; i++){
+        prop = computedStyle[i];
+        computedStyleObj[prop] = computedStyle[prop];
+      }
+      var t3 = performance.now();
+      console.log("Style comparison took " + (t3 - t2) + " milliseconds.");
+      return JSON.stringify(computedStyleObj);
+    }
+
     const TEXTNODE_NODETYPE = 3
     const ELEMENT_NODETYPE = 1
 
@@ -3592,8 +3611,14 @@ function getPageScript() {
                 console.log(el);
                 try {
                   if (el instanceof Array) {
-                    getElementsByXPath(el[0], document.documentElement)[0].click();
-                    getElementsByXPath(el[1], document.documentElement)[0].click();
+                    let selectEl = getElementsByXPath(el[0], document.documentElement)[0];
+                    let optionEl = getElementsByXPath(el[1], document.documentElement)[0];
+                    if (selectEl.tagName.toLowerCase() == "select"){
+                      selectEl.value = optionEl.value;
+                    }else{
+                      selectEl.click();
+                      optionEl.click();
+                    }
                   } else {
                     var element = getElementsByXPath(el, document
                       .documentElement)[
@@ -3709,7 +3734,7 @@ function getPageScript() {
           longestTextLen = 0;
       let children = el.querySelectorAll("*"); // all descendants, excluding textNodes
       // return the (only) visible textnode if no children
-      if (!children.length && el.innerText.length){
+      if (!children.length && el.innerText){
         return el.childNodes[0];
       }
       for (let child of children){
@@ -3744,7 +3769,8 @@ function getPageScript() {
         longestTextBoundingRect = "",
         longestText = "";
       let timeStamp = new Date().toISOString();
-      let style = getNonDefaultStyles(node);
+      //let style = getNonDefaultStyles(node);
+      let style = getComputedStyleAsString(node);
       let nodeId = addGuid(node);
       let boundingRect = getNodeBoundingClientRect(node);
       let innerText = node.innerText === undefined? "" : node.innerText.trim();
@@ -3759,7 +3785,8 @@ function getPageScript() {
           longestTextBoundingRect = boundingRect
           longestText = innerText;
         }else{
-          longestTextStyle = getNonDefaultStyles(longestTextParent);
+          //longestTextStyle = getNonDefaultStyles(longestTextParent);
+          longestTextStyle = getComputedStyleAsString(longestTextParent);
           longestTextBoundingRect = getNodeBoundingClientRect(longestTextParent);
           longestText = longestTextParent.innerText === undefined ? "" : longestTextParent.innerText.trim();
           if (!longestTextParent.innerText.length)
@@ -3791,27 +3818,16 @@ function getPageScript() {
           longestTextBoundingRect, longestTextStyle, numButtons, numImgs, numAnchors);
     }
 
-    function segmentAndRecord(element){
-      var allSegments = segments(element);
-      // console.log(allSegments);
-      for (var node of allSegments){
-        logSegmentDetails(node);
-      }
-      return allSegments;
-    }
-
-    window.onload = function(){
+    window.addEventListener("load", function(){
       const TIME_BEFORE_SEGMENT = 1000;
       const TIME_BEFORE_CLOSING_DIALOGS = 10000;
       let pageSegments;  // list of segments, functions in this closure access and update this list
       // start segmenting 1s after page load
       setTimeout(() => {
         console.log("Will segment the page body");
-        let t0 = performance.now();
         pageSegments = segmentAndRecord(document.body);
         observerSummary = new MutationSummary({
           callback: handleSummary, queries: [{all: true}]})
-        console.log("Segmentation took", (performance.now()-t0), "nSegments:", pageSegments.length)
       }, TIME_BEFORE_SEGMENT);
 
       // close dialog 10s after page load
@@ -3821,13 +3837,28 @@ function getPageScript() {
         if (popup){
           console.log("Found a dialog, will segment and then close the dialog");
           let popupSegment = segmentAndRecord(popup);
-          if (pageSegments)
+          if (pageSegments){
             pageSegments.push(popupSegment);
+            pageSegments = removeDuplicates(pageSegments);
+          }
           closeDialog(popup);
         }
         console.log("Will interact with the product attributes");
         playAttributes();
       }, TIME_BEFORE_CLOSING_DIALOGS);
+
+      function segmentAndRecord(element){
+        let t0 = performance.now();
+        var allSegments = segments(element);
+        console.log("Segmentation took", (performance.now()-t0), "nSegments", allSegments.length);
+        // console.log(allSegments);
+        let t1 = performance.now();
+        for (var node of allSegments){
+          logSegmentDetails(node);
+        }
+        console.log("Segmentation insertion to DB took", (performance.now()-t1))
+        return allSegments;
+      }
 
       function shouldProcessMutationNode(node){
         const excludedNodeTypes = ["SCRIPT", "STYLE", "DOCUMENT", "BODY",
@@ -3871,10 +3902,12 @@ function getPageScript() {
             for (let node of nodesToSegment){
               // call segmentation
               let newSegments = segmentAndRecord(node);
-              if (newSegments)
+              if (newSegments){
                 pageSegments.push(newSegments);
+                pageSegments = removeDuplicates(pageSegments);
+              }
             }
-            console.log("Mutation summary segmentation took", (performance.now() - t0), nodesToSegment.size)
+            console.log("Mutation summary segmentation took", (performance.now() - t0), nodesToSegment.size, pageSegments.length);
           }
         }
         if (charChangedNodes.length){
@@ -3889,7 +3922,7 @@ function getPageScript() {
           }
         }
       }  // end of handleSummary
-    }
+    });
 
     /* Segments processing - End */
     /******************************************/
@@ -3922,6 +3955,10 @@ function getPageScript() {
       logMutationSummary("CharacterDataChanged", node, summary, timeStamp);
     }
 
+    function removeDuplicates(arr){
+      return Array.from(new Set(arr))
+    }
+
     function onAttrsChanged(attrChanges, summary, timeStamp){
       for (var attrName in attrChanges){
         var nodes = new Set(attrChanges[attrName]);
@@ -3951,8 +3988,8 @@ function getPageScript() {
         if (!parentFound)
           nodesWithoutAncestorSegments.push(origNode);
       }
-      console.log("ancestorSegments", ancestorSegments.length, ancestorSegments,
-          "nodesWithoutAncestorSegments", nodesWithoutAncestorSegments.length, nodesWithoutAncestorSegments);
+      //console.log("ancestorSegments", ancestorSegments.length, ancestorSegments,
+      //    "nodesWithoutAncestorSegments", nodesWithoutAncestorSegments.length, nodesWithoutAncestorSegments);
       // return combined and uniqued arrays
       return Array.from(new Set(ancestorSegments.concat(nodesWithoutAncestorSegments)));
     }
@@ -3977,7 +4014,7 @@ function insertScript(text, data) {
   }
 
   parent.insertBefore(script, parent.firstChild);
-  parent.removeChild(script);
+  //parent.removeChild(script);
 }
 
 function emitMsg(type, msg) {
