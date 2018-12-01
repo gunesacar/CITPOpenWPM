@@ -4014,7 +4014,7 @@ function insertScript(text, data) {
   }
 
   parent.insertBefore(script, parent.firstChild);
-  //parent.removeChild(script);
+  parent.removeChild(script);
 }
 
 function emitMsg(type, msg) {

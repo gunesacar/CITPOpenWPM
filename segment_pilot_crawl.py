@@ -11,7 +11,7 @@ DATA_DIR = os.path.join(os.path.dirname(__file__), 'data')
 
 manager_params, browser_params = TaskManager.load_default_params(NUM_BROWSERS)
 
-date_prefix = '2018-11-29'  # Updated by deployment script
+date_prefix = '2018-12-01'  # Updated by deployment script
 prefix = date_prefix + '_segmentation_pilot'
 manager_params['database_name'] = prefix + '.sqlite'
 manager_params['data_directory'] = '~/' + prefix
@@ -56,13 +56,12 @@ for i in range(start_index, end_index):
         url = sites[i]
         cs = CommandSequence.CommandSequence(
             url, reset=True)
-        GET_TIMEOUT = 30
         TIME_ON_PAGE = 160  # product interaction = 125, initial wait 10
+        GET_TIMEOUT = TIME_ON_PAGE * 2  # must be longer than the TIME_ON_PAGE
         cs.get(sleep=1, timeout=GET_TIMEOUT)
         # cs.run_custom_function(close_dialogs, ())
         cs.run_custom_function(capture_screenshots, (TIME_ON_PAGE,),
                                timeout=TIME_ON_PAGE+5)
-        # cs.save_screenshot("%s_%s" % (urlparse(url).hostname, i))
         manager.execute_command_sequence(cs)
         with open(
                 os.path.expanduser('~/.openwpm/current_site_index'),

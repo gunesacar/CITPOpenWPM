@@ -177,8 +177,8 @@ class TaskManager:
               kill browser processes started by Selenium 3 (with `subprocess`)
         """
         if self.process_watchdog:
-            self.logger.error("BROWSER %i: Process watchdog is not currently "
-                              "supported." % self.crawl_id)
+            self.logger.error("BROWSER: Process watchdog is not currently "
+                              "supported.")
         while not self.closing:
             time.sleep(10)
 
