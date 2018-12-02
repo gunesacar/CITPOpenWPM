@@ -54,7 +54,7 @@ def loggingclient(logger_address, logger_port, level=logging.DEBUG):
         consoleHandler = logging.StreamHandler(sys.stdout)
         consoleHandler.setLevel(logging.INFO)
         formatter = logging.Formatter(
-            '%(module)-20s - %(levelname)-8s - %(message)s')
+            '%(asctime)s - %(module)-20s - %(levelname)-8s - %(message)s')
         consoleHandler.setFormatter(formatter)
         logger.addHandler(consoleHandler)
 

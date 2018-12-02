@@ -3,6 +3,7 @@ from automation.Errors import CommandExecutionError
 import time
 import os
 from automation.Commands.utils.screen_capture import capture_screenshots
+from urlparse import urlparse
 
 # The list of sites that we wish to crawl
 NUM_BROWSERS = 7
@@ -11,7 +12,7 @@ DATA_DIR = os.path.join(os.path.dirname(__file__), 'data')
 
 manager_params, browser_params = TaskManager.load_default_params(NUM_BROWSERS)
 
-date_prefix = '2018-12-01'  # Updated by deployment script
+date_prefix = '2018-12-02'  # Updated by deployment script
 prefix = date_prefix + '_segmentation_pilot'
 manager_params['database_name'] = prefix + '.sqlite'
 manager_params['data_directory'] = '~/' + prefix
@@ -60,6 +61,8 @@ for i in range(start_index, end_index):
         GET_TIMEOUT = TIME_ON_PAGE * 2  # must be longer than the TIME_ON_PAGE
         cs.get(sleep=1, timeout=GET_TIMEOUT)
         # cs.run_custom_function(close_dialogs, ())
+        hostname = urlparse(url).hostname
+        cs.dump_page_source(hostname, timeout=TIME_ON_PAGE+5)
         cs.run_custom_function(capture_screenshots, (TIME_ON_PAGE,),
                                timeout=TIME_ON_PAGE+5)
         manager.execute_command_sequence(cs)

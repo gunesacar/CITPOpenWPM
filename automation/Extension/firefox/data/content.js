@@ -3299,7 +3299,7 @@ function getPageScript() {
       'description', 'additional information', 'ship ', '$',
       '%', 'save as', 'out ', 'wishlist', 'increment', 'buy',
       'availability', 'decrement', 'pick ', 'video', 'plus', 'minus', 'quantity',
-      'slide', 'address', 'learn more', 'at ', 'reserve', 'save'
+      'slide', 'address', 'learn more', 'at ', 'reserve', 'save', 'pickup', 'favorite'
     ];
 
     const winWidth = window.innerWidth;
@@ -3547,7 +3547,7 @@ function getPageScript() {
 
       triggerElements = triggerElements.filter(te => {
         var text = filterText(te.innerText);
-        return text !== '' && text.replace(/[^\x00-\xFF]/g, '') !== '1';
+        return text !== '' && text.replace(/[^\x00-\xFF]/g, '') !== '1' && !hasIgnoredText(text);
       });
 
       triggerElements = triggerElements.filter(te => {
@@ -3622,7 +3622,31 @@ function getPageScript() {
       var combinations = elementCombinations(attributes);
       var randomCombinations = getRandomSubarray(combinations, 5);
 
+      function clickHandler(element) {
+        var as = element.getElementsByTagName('a');
+        if (as.length !== 0) {
+          as[0].click();
+          return;
+        }
+
+        var buttons = element.getElementsByTagName(
+          'button');
+        if (buttons.length !== 0) {
+          buttons[0].click();
+          return;
+        }
+
+        if (element.children.length > 0) {
+          element.children[0].click()
+        } else {
+          element.click();
+        }
+
+        return;
+      }
+
       var waitTime = 3000;
+      console.log(randomCombinations.length);
       randomCombinations.forEach(function(rc, ind) {
 
         setTimeout(function() {
@@ -3641,37 +3665,17 @@ function getPageScript() {
                     if (selectEl.tagName.toLowerCase() ==
                       "select") {
                       selectEl.value = optionEl.value;
+                      var event = new Event("change", {"bubbles":true, "cancelable":false});
+                      selectEl.dispatchEvent(event);
                     } else {
-                      selectEl.click();
-                      optionEl.click();
+                      clickHandler(selectEl);
+                      clickHandler(optionEl);
                     }
                   } else {
                     var element = getElementsByXPath(el, document
                       .documentElement, document)[
                       0];
-                    if (element.tagName.toLowerCase() === 'li') {
-                      var as = element.getElementsByTagName('a');
-                      if (as.length !== 0) {
-                        as[0].click();
-                        return;
-                      }
-
-                      var buttons = element.getElementsByTagName(
-                        'button');
-                      if (buttons.length !== 0) {
-                        buttons[0].click();
-                        return;
-                      }
-
-                      if (element.children.length === 1) {
-                        element.children[0].click()
-                      } else {
-                        element.click();
-                      }
-
-                    } else {
-                      element.click();
-                    }
+                    clickHandler(element);
                   }
                 } catch (err) {
                   console.log(err);
@@ -3765,28 +3769,38 @@ function getPageScript() {
         return el.querySelectorAll(nodeType).length;
     }
 
-    function getLongestTextChild(el){
+    function getLongestTextChild(el) {
       let longestTextNode,
-          longestTextLen = 0;
-      let children = el.querySelectorAll("*"); // all descendants, excluding textNodes
+        longestTextLen = 0;
+      let children = Array.from(el.querySelectorAll("*")); // all descendants, excluding textNodes
+      let elInnerText = el.innerText && el.innerText.toLowerCase();
       // return the (only) visible textnode if no children
-      if (!children.length && el.innerText){
+      if ((!children.length) && elInnerText) {
         return el.childNodes[0];
       }
-      for (let child of children){
-        for (let node of child.childNodes){
+
+      let elChildNodes = Array.from(el.childNodes);
+      textChildren = elChildNodes.filter(node => (node.nodeType === TEXTNODE_NODETYPE));
+      let allChildren = children.concat(textChildren);
+
+      for (let child of allChildren) {
+        let nodeAndChildren = Array.from(child.childNodes);
+        nodeAndChildren.push(child);
+        for (let node of nodeAndChildren) {
           if (node.nodeType !== TEXTNODE_NODETYPE)
             continue;
-          //console.log(node, node.nodeType, node.wholeText, node.wholeText.length)
-          let parent = node.parentNode;
-          if (parent.innerText && (parent.innerText.length > longestTextLen)){
+          let text = node.wholeText.trim();
+          if (!text)
+            continue
+          if ((text.length > longestTextLen) && elInnerText.includes(text.toLowerCase())) {
             longestTextNode = node;
-            longestTextLen = parent.innerText.length;
+            longestTextLen = text.length;
           }
         }
       }
       return longestTextNode;
     }
+
 
     const MAX_RAND_INT = 2**32;
     const GUID_ATTR_NAME = 'openwpm-dp-guid';
@@ -3813,20 +3827,17 @@ function getPageScript() {
       let outerHtml = node.outerHTML;
       let longestTextNode = getLongestTextChild(node);
       if (longestTextNode){
+        longestText = longestTextNode.wholeText.trim();
         let longestTextParent = longestTextNode.parentNode;
         if (node.isSameNode(longestTextParent)){
-          // longest text is the same as the segment text
+          // longest text's parent is the segment node itself
           // TODO: should we redundantly store these?
           longestTextStyle = style;
-          longestTextBoundingRect = boundingRect
-          longestText = innerText;
+          longestTextBoundingRect = boundingRect;
         }else{
           //longestTextStyle = getNonDefaultStyles(longestTextParent);
           longestTextStyle = getComputedStyleAsString(longestTextParent);
           longestTextBoundingRect = getNodeBoundingClientRect(longestTextParent);
-          longestText = longestTextParent.innerText === undefined ? "" : longestTextParent.innerText.trim();
-          if (!longestTextParent.innerText.length)
-            console.log("longestTextParent.innerText empty", longestTextParent);
         }
       }
       let numButtons = countNodesOfType(node, "button");
@@ -3942,7 +3953,7 @@ function getPageScript() {
             for (let node of nodesToSegment){
               // call segmentation
               let newSegments = segmentAndRecord(node);
-              if (newSegments){
+              if (newSegments && newSegments.length){
                 pageSegments.push(newSegments);
                 pageSegments = removeDuplicates(pageSegments);
               }
