@@ -2617,7 +2617,11 @@ function getPageScript() {
       for (var be of blockElements) {
         var children = Array.from(element.getElementsByTagName(be));
         if (visibility) {
-          children = children.filter(element => isShown(element));
+          for (child of children){
+            if (isShown(child))
+              return true;
+          }
+          return false;
         }
 
         if (children.length > 0) {
@@ -3943,7 +3947,7 @@ function getPageScript() {
                 pageSegments = removeDuplicates(pageSegments);
               }
             }
-            console.log("Mutation summary segmentation took", (performance.now() - t0), nodesToSegment.size, pageSegments.length);
+            console.log("Mutation summary segmentation took", (performance.now() - t0), pageSegments.length);
           }
         }
         if (charChangedNodes.length){
