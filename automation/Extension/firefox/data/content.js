@@ -2172,8 +2172,9 @@ function getPageScript() {
         prop = computedStyle[i];
         computedStyleObj[prop] = computedStyle[prop];
       }
-      var t3 = performance.now();
-      console.log("Style comparison took " + (t3 - t2) + " milliseconds.");
+      let styleConversionDuration = performance.now() - t2;
+      if (styleConversionDuration > 500)
+        console.log("Style conversion took " + styleConversionDuration + " milliseconds.");
       return JSON.stringify(computedStyleObj);
     }
 
@@ -2292,14 +2293,16 @@ function getPageScript() {
     const ignoredElements = ['script', 'style', 'noscript', 'br', 'hr'];
 
     var getRandomSubarray = function(arr, size) {
-        var shuffled = arr.slice(0), i = arr.length, temp, index;
-        while (i--) {
-            index = Math.floor((i + 1) * Math.random());
-            temp = shuffled[index];
-            shuffled[index] = shuffled[i];
-            shuffled[i] = temp;
-        }
-        return shuffled.slice(0, size);
+      var shuffled = arr.slice(0),
+        i = arr.length,
+        temp, index;
+      while (i--) {
+        index = Math.floor((i + 1) * Math.random());
+        temp = shuffled[index];
+        shuffled[index] = shuffled[i];
+        shuffled[i] = temp;
+      }
+      return shuffled.slice(0, size);
     };
 
     var elementCombinations = function(arguments) {
@@ -2381,8 +2384,10 @@ function getPageScript() {
         }
 
         return style.overflow !== 'hidden' && Array.from(element.childNodes).some(
-          n => (n.nodeType === Node.TEXT_NODE && filterText(n.nodeValue)) || (n.nodeType === Node.ELEMENT_NODE &&
-            positiveSize(n) && window.getComputedStyle(n).display !== 'none'));
+          n => (n.nodeType === Node.TEXT_NODE && filterText(n.nodeValue)) ||
+          (n.nodeType === Node.ELEMENT_NODE &&
+            positiveSize(n) && window.getComputedStyle(n).display !== 'none')
+        );
       };
 
       var getOverflowState = function(element) {
@@ -2551,7 +2556,7 @@ function getPageScript() {
 
       var style = window.getComputedStyle(element);
 
-      if (style == null){
+      if (style == null) {
         return false;
       }
 
@@ -2608,10 +2613,12 @@ function getPageScript() {
       return (height === 1 && width === 1);
     };
 
-    var containsBlockElements = function(element) {
+    var containsBlockElements = function(element, visibility = true) {
       for (var be of blockElements) {
         var children = Array.from(element.getElementsByTagName(be));
-        children = children.filter(element => isShown(element));
+        if (visibility) {
+          children = children.filter(element => isShown(element));
+        }
 
         if (children.length > 0) {
           return true;
@@ -2671,10 +2678,10 @@ function getPageScript() {
       return result;
     };
 
-    var getElementsByXPath = function(xpath, parent) {
+    var getElementsByXPath = function(xpath, parent, doc) {
       let results = [];
-      let query = document.evaluate(xpath,
-        parent || document,
+      let query = doc.evaluate(xpath,
+        parent || doc,
         null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
       for (let i = 0, length = query.snapshotLength; i < length; ++i) {
         results.push(query.snapshotItem(i));
@@ -2683,10 +2690,10 @@ function getPageScript() {
     };
 
     var getXPathTo = function(element) {
-      if (element.id !== '')
-        return 'id("' + element.id + '")';
+      if (element.tagName == 'HTML')
+        return '/HTML[1]';
       if (element === document.body)
-        return element.tagName;
+        return '/HTML[1]/BODY[1]';
 
       var ix = 0;
       var siblings = element.parentNode.childNodes;
@@ -3116,7 +3123,6 @@ function getPageScript() {
 
     /******************************************/
     /* dismiss_dialogs.js - Start */
-
     /* This file is used to locate the div element of a web page that might contain
     close buttons to dismiss a modal dialog */
 
@@ -3243,14 +3249,21 @@ function getPageScript() {
       var closeElements = ['button', 'img', 'span', 'a', 'div'];
       var result = [];
 
-      for (var ce of closeElements) {
-        var elements = getElementsByXPath('.//' + ce + '[@*[contains(.,\'close\') and not(contains(.,\'/\'))]]', element);
-        elements = elements.concat(getElementsByXPath('.//' + ce + '[@*[contains(.,\'Close\') and not(contains(.,\'/\'))]]', element));
-        elements = elements.concat(getElementsByXPath('.//' + ce + '[@*[contains(.,\'dismiss\') and not(contains(.,\'/\'))]]', element));
-        elements = elements.concat(getElementsByXPath('.//' + ce + '[@*[contains(.,\'Dismiss\') and not(contains(.,\'/\'))]]', element));
+      var doc = document;
 
-        elements = elements.concat(getElementsByXPath('.//' + ce + '[text()[contains(., \'Agree\')]]', element));
-        elements = elements.concat(getElementsByXPath('.//' + ce + '[text()[contains(., \'agree\')]]', element));
+      if (element.tagName.toLowerCase() === 'iframe') {
+        doc = element.contentDocument;
+        element = element.contentDocument;
+      }
+
+      for (var ce of closeElements) {
+        var elements = getElementsByXPath('.//' + ce + '[@*[contains(.,\'close\') and not(contains(.,\'/\'))]]', element, doc);
+        elements = elements.concat(getElementsByXPath('.//' + ce + '[@*[contains(.,\'Close\') and not(contains(.,\'/\'))]]', element, doc));
+        elements = elements.concat(getElementsByXPath('.//' + ce + '[@*[contains(.,\'dismiss\') and not(contains(.,\'/\'))]]', element, doc));
+        elements = elements.concat(getElementsByXPath('.//' + ce + '[@*[contains(.,\'Dismiss\') and not(contains(.,\'/\'))]]', element, doc));
+
+        elements = elements.concat(getElementsByXPath('.//' + ce + '[text()[contains(., \'Agree\')]]', element, doc));
+        elements = elements.concat(getElementsByXPath('.//' + ce + '[text()[contains(., \'agree\')]]', element, doc));
 
         result = result.concat(elements.filter(x => isShown(x) && (x.style.offsetHeight !== 0 || x.style.offsetWidth !== 0)));
       }
@@ -3267,12 +3280,13 @@ function getPageScript() {
       }
     };
 
+    //closeDialog(getPopupContainer());
+
     /* dismiss_dialogs.js - End */
     /******************************************/
 
     /******************************************/
     /* extract_product_options.js - Start */
-
     const excludedWords = ['instagram', 'youtube', 'twitter', 'facebook', 'login',
       'log in', 'signup', 'sign up', 'signin', 'sign in',
       'share', 'account', 'add', 'review', 'submit', 'related',
@@ -3424,7 +3438,7 @@ function getPageScript() {
     };
 
     var hasLocation = function(rect) {
-      return (rect.left >= 0.3 * winWidth && rect.left <= winWidth && rect.bottom <=
+      return (rect.left >= 0.3 * winWidth && rect.left <= winWidth && rect.top <=
         900 && rect.top >= 200);
     };
 
@@ -3440,33 +3454,34 @@ function getPageScript() {
 
       var toggleElements = liElements.concat(labelElements).concat(aElements).concat(
         spanElements).concat(divElements);
-      toggleElements = toggleElements.filter(element => isShown(element));
-
-      toggleElements = toggleElements.filter(element => filterText(element.innerText)
-        .replace(/[^\x00-\xFF]/g, '') !==
-        '1');
-
-      toggleElements = toggleElements.filter(element => !hasIgnoredText(element.innerText +
-        ' ' + element.getAttribute('class')));
-
-      toggleElements = toggleElements.filter(element => hasRequiredDisplay(
-        element));
-
-      toggleElements = toggleElements.filter(element => !hasExcludedElements(
-        element));
 
       toggleElements = toggleElements.filter(element => element.getElementsByTagName(
         'a').length <= 1);
       toggleElements = toggleElements.filter(element => element.getElementsByTagName(
         'button').length <= 1);
 
-      toggleElements = toggleElements.filter(element => hasBorder(element));
+      toggleElements = toggleElements.filter(element => {
+        var text = element.innerText;
+        var eclass = element.getAttribute('class');
+        return !hasIgnoredText(text + ' ' + eclass) && text.replace(
+          /[^\x00-\xFF]/g, '') !== '1';
+      });
+
+      toggleElements = toggleElements.filter(element => !hasExcludedElements(
+        element));
 
       toggleElements = toggleElements.filter(element => {
         var rect = element.getBoundingClientRect();
         return hasHeight(rect, 21, 110) && hasWidth(rect, 5, 270) &&
           hasLocation(rect);
       });
+
+      toggleElements = toggleElements.filter(element => hasRequiredDisplay(
+        element));
+
+      toggleElements = toggleElements.filter(element => hasBorder(element));
+
+      toggleElements = toggleElements.filter(element => isShown(element));
 
       toggleElements = clusters(parentRemoval(toggleElements, 'li'), 4);
 
@@ -3522,12 +3537,14 @@ function getPageScript() {
 
       var triggerElements = labelElements.concat(aElements).concat(spanElements).concat(
         divElements).concat(buttonElements);
-      triggerElements = triggerElements.filter(te => isShown(te));
 
-      triggerElements = triggerElements.filter(te => filterText(te.innerText) !==
-        '' && filterText(te.innerText).replace(/[^\x00-\xFF]/g, '') !== '1' &&
-        !hasIgnoredText(te.innerText)
-      );
+      triggerElements = triggerElements.filter(te => te.getElementsByTagName('a')
+        .length <= 1);
+
+      triggerElements = triggerElements.filter(te => {
+        var text = filterText(te.innerText);
+        return text !== '' && text.replace(/[^\x00-\xFF]/g, '') !== '1';
+      });
 
       triggerElements = triggerElements.filter(te => {
         var rect = te.getBoundingClientRect();
@@ -3537,11 +3554,13 @@ function getPageScript() {
 
       triggerElements = triggerElements.filter(te => hasBorder(te, false));
 
-      triggerElements = triggerElements.filter(te => te.getElementsByTagName('a')
-        .length <= 1);
+      triggerElements = triggerElements.filter(te => {
+        var style = window.getComputedStyle(te);
 
-      triggerElements = triggerElements.filter(te => !te.style.position !==
-        'fixed');
+        return style ? (style.position === 'fixed' ? false : true) : false;
+      });
+
+      triggerElements = triggerElements.filter(te => isShown(te));
 
       triggerElements = parentRemoval(triggerElements);
 
@@ -3611,23 +3630,42 @@ function getPageScript() {
                 console.log(el);
                 try {
                   if (el instanceof Array) {
-                    let selectEl = getElementsByXPath(el[0], document.documentElement)[0];
-                    let optionEl = getElementsByXPath(el[1], document.documentElement)[0];
-                    if (selectEl.tagName.toLowerCase() == "select"){
+                    var selectEl = getElementsByXPath(el[0],
+                      document.documentElement, document)[0];
+                    var optionEl = getElementsByXPath(el[1],
+                      document.documentElement, document)[0];
+                    if (selectEl.tagName.toLowerCase() ==
+                      "select") {
                       selectEl.value = optionEl.value;
-                    }else{
+                    } else {
                       selectEl.click();
                       optionEl.click();
                     }
                   } else {
                     var element = getElementsByXPath(el, document
-                      .documentElement)[
+                      .documentElement, document)[
                       0];
-                    if (element.tagName.toLowerCase() === 'li' &&
-                      element.children.length === 1) {
-                      element.children[0].click();
-                    }
-                    else {
+                    if (element.tagName.toLowerCase() === 'li') {
+                      var as = element.getElementsByTagName('a');
+                      if (as.length !== 0) {
+                        as[0].click();
+                        return;
+                      }
+
+                      var buttons = element.getElementsByTagName(
+                        'button');
+                      if (buttons.length !== 0) {
+                        buttons[0].click();
+                        return;
+                      }
+
+                      if (element.children.length === 1) {
+                        element.children[0].click()
+                      } else {
+                        element.click();
+                      }
+
+                    } else {
                       element.click();
                     }
                   }
@@ -3643,6 +3681,8 @@ function getPageScript() {
         }, ind * (randomCombinations.length) * (waitTime + 2000));
       });
     };
+
+    //playAttributes();
 
     /* extract_product_options.js - End */
     /******************************************/
@@ -3665,9 +3705,12 @@ function getPageScript() {
     };
 
     var segments = function(element) {
-      if (element && isShown(element) && !isPixel(element)) {
-        var tag = element.tagName.toLowerCase();
+      if (!element) {
+        return [];
+      }
 
+      var tag = element.tagName.toLowerCase();
+      if (!ignoredElements.includes(tag) && !isPixel(element) && isShown(element)) {
         if (blockElements.includes(tag)) {
           if (!containsBlockElements(element)) {
             if (allIgnoreChildren(element)) {
@@ -3686,12 +3729,8 @@ function getPageScript() {
 
             return result;
           }
-        }
-        else if (ignoredElements.includes(tag)) {
-          return [];
-        }
-        else {
-          if (containsBlockElements(element)) {
+        } else {
+          if (containsBlockElements(element, false)) {
             var result = [];
 
             for (var child of element.children) {
@@ -3699,25 +3738,18 @@ function getPageScript() {
             }
 
             return result;
-          }
-          else {
+          } else {
             return [element];
           }
         }
-      }
-      else {
+      } else {
         return [];
       }
     };
 
-    /*for (var seg of segs) {
-      seg.style.border = '0.1em solid red';
-      var fontSize = parseInt(window.getComputedStyle(seg).fontSize);
 
-      if (fontSize === 0) {
-        seg.style.fontSize = "10px";
-      }
-    }*/
+    //segments(document.body);
+
 
     /* Segmentation algo 2 (old method) - End */
     /******************************************/
@@ -3850,13 +3882,17 @@ function getPageScript() {
       function segmentAndRecord(element){
         let t0 = performance.now();
         var allSegments = segments(element);
-        console.log("Segmentation took", (performance.now()-t0), "nSegments", allSegments.length);
+        let segmentationDuration = performance.now()-t0;
+        if (segmentationDuration > 500)
+          console.log("Segmentation took", segmentationDuration, "nSegments", allSegments.length);
         // console.log(allSegments);
         let t1 = performance.now();
         for (var node of allSegments){
           logSegmentDetails(node);
         }
-        console.log("Segmentation insertion to DB took", (performance.now()-t1))
+        let segmentationLogDuration = performance.now()-t1;
+        if (segmentationLogDuration > 500)
+          console.log("Segmentation insertion to DB took", segmentationLogDuration)
         return allSegments;
       }
 
