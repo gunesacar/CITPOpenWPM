@@ -3127,6 +3127,7 @@ function getPageScript() {
 
     /******************************************/
     /* dismiss_dialogs.js - Start */
+
     /* This file is used to locate the div element of a web page that might contain
     close buttons to dismiss a modal dialog */
 
@@ -3250,7 +3251,7 @@ function getPageScript() {
     };
 
     var closeDialog = function(element) {
-      var closeElements = ['button', 'img', 'span', 'a', 'div'];
+      var closeElements = ['button', 'a', 'div', 'span', 'img'];
       var result = [];
 
       var doc = document;
@@ -3269,10 +3270,14 @@ function getPageScript() {
         elements = elements.concat(getElementsByXPath('.//' + ce + '[text()[contains(., \'Agree\')]]', element, doc));
         elements = elements.concat(getElementsByXPath('.//' + ce + '[text()[contains(., \'agree\')]]', element, doc));
 
+        elements = elements.concat(getElementsByXPath('.//' + ce + '[text()[contains(., \'No \')]]', element, doc));
+
         result = result.concat(elements.filter(x => isShown(x) && (x.style.offsetHeight !== 0 || x.style.offsetWidth !== 0)));
       }
 
-      result = parentRemoval(result);
+      result = result.filter(function(item, pos) { return result.indexOf(item)== pos; });
+
+      result = parentRemoval(result, 'button');
 
       for (var r of result) {
         try {
@@ -3286,20 +3291,23 @@ function getPageScript() {
 
     //closeDialog(getPopupContainer());
 
+
     /* dismiss_dialogs.js - End */
     /******************************************/
 
     /******************************************/
     /* extract_product_options.js - Start */
+
     const excludedWords = ['instagram', 'youtube', 'twitter', 'facebook', 'login',
-      'log in', 'signup', 'sign up', 'signin', 'sign in',
+      'log in', 'signup', 'sign up', 'signin', 'sign in', 'pinterest', 'email',
       'share', 'account', 'add', 'review', 'submit', 'related',
       'show ', 'shop ', 'upload ', 'code ', 'view details',
       'choose options', 'cart', 'loading', 'cancel', 'view all',
       'description', 'additional information', 'ship ', '$',
       '%', 'save as', 'out ', 'wishlist', 'increment', 'buy',
       'availability', 'decrement', 'pick ', 'video', 'plus', 'minus', 'quantity',
-      'slide', 'address', 'learn more', 'at ', 'reserve', 'save', 'pickup', 'favorite'
+      'slide', 'address', 'learn more', 'at ', 'reserve', 'save', 'pickup', 'favorite',
+      'gift', 'registry', 'larger ', 'guide', 'seeds', 'stars'
     ];
 
     const winWidth = window.innerWidth;
@@ -3691,6 +3699,7 @@ function getPageScript() {
     };
 
     //playAttributes();
+
 
     /* extract_product_options.js - End */
     /******************************************/
