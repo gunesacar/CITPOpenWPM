@@ -3877,11 +3877,13 @@ function getPageScript() {
     window.addEventListener("load", function(){
       const TIME_BEFORE_SEGMENT = 1000;
       const TIME_BEFORE_CLOSING_DIALOGS = 10000;
-      let pageSegments;  // list of segments, functions in this closure access and update this list
+      let pageSegments = [];  // list of segments, functions in this closure access and update this list
       // start segmenting 1s after page load
       setTimeout(() => {
+        console.log("Will check for dialogs");
+        segmentAndDismissDialog();
         console.log("Will segment the page body");
-        pageSegments = segmentAndRecord(document.body);
+        pageSegments.push(segmentAndRecord(document.body));
         observerSummary = new MutationSummary({
           callback: handleSummary, queries: [{all: true}]})
       }, TIME_BEFORE_SEGMENT);
@@ -3889,6 +3891,12 @@ function getPageScript() {
       // close dialog 10s after page load
       setTimeout(() => {
         console.log("Will check for dialogs");
+        segmentAndDismissDialog();
+        console.log("Will interact with the product attributes");
+        playAttributes();
+      }, TIME_BEFORE_CLOSING_DIALOGS);
+
+      function segmentAndDismissDialog(){
         let popup = getPopupContainer();
         if (popup){
           console.log("Found a dialog, will segment and then close the dialog");
@@ -3899,9 +3907,7 @@ function getPageScript() {
           }
           closeDialog(popup);
         }
-        console.log("Will interact with the product attributes");
-        playAttributes();
-      }, TIME_BEFORE_CLOSING_DIALOGS);
+      }
 
       function segmentAndRecord(element){
         let t0 = performance.now();
