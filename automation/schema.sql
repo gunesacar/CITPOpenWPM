@@ -201,3 +201,12 @@ CREATE TABLE IF NOT EXISTS segments(
     num_anchors TEXT,
     time_stamp TEXT NOT NULL
 );
+
+
+CREATE TABLE IF NOT EXISTS interaction_logs(
+  id INTEGER PRIMARY KEY ASC,
+  crawl_id INTEGER,
+  visit_id INTEGER,
+  toggle_element_count INTEGER,
+  select_element_count INTEGER
+);

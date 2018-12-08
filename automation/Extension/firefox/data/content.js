@@ -398,6 +398,26 @@ function getPageScript() {
       inLog = false;
     }
 
+    function logInteraction(toggleElementCount, selectElementCount) {
+      if(inLog)
+        return;
+      inLog = true;
+
+      try {
+        var msg = {
+          toggleElementCount: toggleElementCount,
+          selectElementCount: selectElementCount
+        }
+
+        send('logInteraction', msg);
+      }
+      catch(error) {
+        console.log("Unsuccessful interaction log: " + logInteraction);
+        logErrorToConsole(error);
+      }
+      inLog = false;
+    }
+
     // Rough implementations of Object.getPropertyDescriptor and Object.getPropertyNames
     // See http://wiki.ecmascript.org/doku.php?id=harmony:extended_object_api
     Object.getPropertyDescriptor = function (subject, name) {
@@ -3614,11 +3634,17 @@ function getPageScript() {
 
     var playAttributes = function() {
       var te = getToggleAttributes();
+      var teCount = te.length;
+
       var se = getSelectAttributes();
+      var seCount = se.length;
 
       if (se.length === 0) {
         se = getNonStandardSelectAttributes(flattenDeep(te));
+        seCount = se.length;
       }
+
+      logInteraction(teCount, seCount);
 
       var attributes = te.concat(se);
       attributes = mapXPath(attributes);

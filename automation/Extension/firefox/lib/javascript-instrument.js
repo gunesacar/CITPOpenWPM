@@ -59,6 +59,14 @@ exports.run = function(crawlID, testing) {
         loggingDB.saveRecord("segments", update);
       }
 
+      function processInteractions(data) {
+        var update = {};
+        update["crawl_id"] = crawlID;
+        update["toggle_element_count"] = loggingDB.escapeString(data.toggleElementCount);
+        update["select_element_count"] = loggingDB.escapeString(data.selectElementCount);
+        loggingDB.saveRecord("interaction_logs", update);
+      }
+
       function processCallsAndValues(data) {
         var update = {};
         update["crawl_id"] = crawlID;
@@ -97,6 +105,7 @@ exports.run = function(crawlID, testing) {
       worker.port.on("logValue", function(data){processCallsAndValues(data)});
       worker.port.on("logMutation", function(data){processMutationSummaries(data)});
       worker.port.on("logSegment", function(data){processSegments(data)});
+      worker.port.on("logInteraction", function(data){processInteractions(data)});
     }
   });
 };
