@@ -3823,11 +3823,10 @@ function getPageScript() {
       return guid;
     }
 
-    function logSegmentDetails(node){
+    function logSegmentDetails(node, timeStamp){
       let longestTextStyle = "",
         longestTextBoundingRect = "",
         longestText = "";
-      let timeStamp = new Date().toISOString();
       //let style = getNonDefaultStyles(node);
       let style = getComputedStyleAsString(node);
       let nodeId = addGuid(node);
@@ -3911,6 +3910,7 @@ function getPageScript() {
 
       function segmentAndRecord(element){
         let t0 = performance.now();
+        let timeStamp = new Date().toISOString();
         var allSegments = segments(element);
         let segmentationDuration = performance.now()-t0;
         if (segmentationDuration > 500)
@@ -3918,7 +3918,7 @@ function getPageScript() {
         // console.log(allSegments);
         let t1 = performance.now();
         for (var node of allSegments){
-          logSegmentDetails(node);
+          logSegmentDetails(node, timeStamp);
         }
         let segmentationLogDuration = performance.now()-t1;
         if (segmentationLogDuration > 500)
@@ -3984,7 +3984,7 @@ function getPageScript() {
                   node => !nodesToSegment.has(node));
           // record node details
           for (let node of nodesToRecord){
-            logSegmentDetails(node);
+            logSegmentDetails(node, timeStamp);
           }
         }
       }  // end of handleSummary
