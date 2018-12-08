@@ -3327,7 +3327,7 @@ function getPageScript() {
       '%', 'save as', 'out ', 'wishlist', 'increment', 'buy',
       'availability', 'decrement', 'pick ', 'video', 'plus', 'minus', 'quantity',
       'slide', 'address', 'learn more', 'at ', 'reserve', 'save', 'pickup', 'favorite',
-      'gift', 'registry', 'larger ', 'guide', 'seeds', 'stars'
+      'gift', 'registry', 'larger ', 'guide', 'seeds', 'stars', 'compare'
     ];
 
     const winWidth = window.innerWidth;
