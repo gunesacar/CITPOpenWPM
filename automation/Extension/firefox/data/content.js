@@ -2312,6 +2312,28 @@ function getPageScript() {
     ];
     const ignoredElements = ['script', 'style', 'noscript', 'br', 'hr'];
 
+    const winWidth = window.innerWidth;
+    const winHeight = window.innerHeight;
+    const winArea = winWidth * winHeight;
+
+    var getElementArea = function(element) {
+      var rect = element.getBoundingClientRect();
+      return rect.height * rect.width;
+    };
+
+    var getBackgroundColor = function(element) {
+      var style = window.getComputedStyle(element);
+      var tagName = element.tagName.toLowerCase();
+
+      if (style === null || style.backgroundColor === 'transparent') {
+        var parent = element.parentElement;
+        return (parent === null || tagName === 'body') ? 'rgb(255, 255, 255)' : getBackgroundColor(parent);
+      }
+      else {
+        return style.backgroundColor;
+      }
+    };
+
     var getRandomSubarray = function(arr, size) {
       var shuffled = arr.slice(0),
         i = arr.length,
@@ -2599,6 +2621,38 @@ function getPageScript() {
       return !hiddenByOverflow(element);
     };
 
+    var isInteractable = function(element) {
+      function isEnabled(element) {
+        var disabledSupportElements = ['button', 'input', 'optgroup', 'option', 'select', 'textarea'];
+        var tagName = element.tagName.toLowerCase();
+
+        if (!disabledSupportElements.includes(tagName)) {
+          return true;
+        }
+
+        if (element.getAttribute('disabled')) {
+          return false;
+        }
+
+        if (element.parentElement && tagName === 'optgroup' || tagName === 'option') {
+          return isEnabled(element.parentElement);
+        }
+
+        return true;
+      }
+
+      function arePointerEventsDisabled(element) {
+        var style = window.getComputedStyle(element);
+        if (!style) {
+          return false;
+        }
+
+        return style.pointerEvents === 'none';
+      }
+
+      return isShown(element) && isEnabled(element) && !arePointerEventsDisabled(element);
+    };
+
     var containsTextNodes = function(element) {
       if (element) {
         if (element.hasChildNodes()) {
@@ -2763,7 +2817,7 @@ function getPageScript() {
       return bestSoFar;
     };
 
-    var min = function(iterable, by = identity) {
+    var minC = function(iterable, by = identity) {
       return best(iterable, by, (a, b) => a < b);
     };
 
@@ -3026,7 +3080,7 @@ function getPageScript() {
         }
         // Optimizing this by inlining the loop and writing it less
         // functionally doesn't help:
-        return min(clustersAndDistances(), x => x.distance);
+        return minC(clustersAndDistances(), x => x.distance);
       }
 
       // Look up the distance between 2 clusters in me. Try the lookup in the
@@ -3330,8 +3384,6 @@ function getPageScript() {
       'gift', 'registry', 'larger ', 'guide', 'seeds', 'stars', 'compare'
     ];
 
-    const winWidth = window.innerWidth;
-
     var parseColor = function(color) {
       var m = color.match(/^rgb\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)$/i);
       if (m) {
@@ -3634,17 +3686,11 @@ function getPageScript() {
 
     var playAttributes = function() {
       var te = getToggleAttributes();
-      var teCount = te.length;
-
       var se = getSelectAttributes();
-      var seCount = se.length;
 
       if (se.length === 0) {
         se = getNonStandardSelectAttributes(flattenDeep(te));
-        seCount = se.length;
       }
-
-      logInteraction(teCount, seCount);
 
       var attributes = te.concat(se);
       attributes = mapXPath(attributes);
@@ -3657,23 +3703,25 @@ function getPageScript() {
       var randomCombinations = getRandomSubarray(combinations, 5);
 
       function clickHandler(element) {
-        var as = element.getElementsByTagName('a');
-        if (as.length !== 0) {
-          as[0].click();
-          return;
-        }
+        if (element) {
+          var as = element.getElementsByTagName('a');
+          if (as.length !== 0) {
+            as[0].click();
+            return;
+          }
 
-        var buttons = element.getElementsByTagName(
-          'button');
-        if (buttons.length !== 0) {
-          buttons[0].click();
-          return;
-        }
+          var buttons = element.getElementsByTagName(
+            'button');
+          if (buttons.length !== 0) {
+            buttons[0].click();
+            return;
+          }
 
-        if (element.children.length > 0) {
-          element.children[0].click()
-        } else {
-          element.click();
+          if (element.children.length > 0) {
+            element.children[0].click()
+          } else {
+            element.click();
+          }
         }
 
         return;
@@ -3724,9 +3772,6 @@ function getPageScript() {
       });
     };
 
-    //playAttributes();
-
-
     /* extract_product_options.js - End */
     /******************************************/
 
@@ -3759,7 +3804,18 @@ function getPageScript() {
             if (allIgnoreChildren(element)) {
               return [];
             } else {
-              return [element];
+              if (getElementArea(element) / winArea > 0.3) {
+                var result = [];
+
+                for (var child of element.children) {
+                  result = result.concat(segments(child));
+                }
+
+                return result;
+              }
+              else {
+                return [element];
+              }
             }
           } else if (containsTextNodes(element)) {
             return [element];
@@ -3782,7 +3838,18 @@ function getPageScript() {
 
             return result;
           } else {
-            return [element];
+            if (getElementArea(element) / winArea > 0.3) {
+              var result = [];
+
+              for (var child of element.children) {
+                result = result.concat(segments(child));
+              }
+
+              return result;
+            }
+            else {
+              return [element];
+            }
           }
         }
       } else {
@@ -3790,11 +3857,285 @@ function getPageScript() {
       }
     };
 
-
-    //segments(document.body);
-
-
     /* Segmentation algo 2 (old method) - End */
+    /******************************************/
+
+    /******************************************/
+    /* Add to Cart - Start */
+
+    // Possible tags for add-to-cart buttons
+    let possibleTags = ["button", "input", "a", "add-to-cart-button"];
+
+    // Toggles debug print statement
+    let debugFlag = false;
+
+    // Debug print statement
+    let debug = function(msg) {
+        if (debugFlag) {
+            console.log(msg);
+        }
+    };
+
+    // Gets an element given its string xpath
+    let getElementByXpath = function(path) {
+        return document.evaluate(path, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+    };
+
+    // Return the min of an array of numbers.
+    let min = function(a) {
+        if (a.length == 0) {
+            console.error("Array has no elements");
+        }
+
+        let m = a[0];
+        for (let i = 0; i < a.length; i++) {
+            if (a[i] < m) {
+                m = a[i];
+            }
+        }
+        return m;
+    };
+
+    // Return the max of an array of numbers.
+    let max = function(a) {
+        if (a.length == 0) {
+            console.error("Array has no elements");
+        } else if (a.length == 1) {
+            return 0;
+        }
+
+        let m = a[0];
+        for (let i = 0; i < a.length; i++) {
+            if (a[i] > m) {
+                m = a[i];
+            }
+        }
+        return m;
+    };
+
+    // Returns an array of the three rgb color values, given a string of the form
+    // "rgb(#, #, #)" or "rgba(#, #, #, #)".
+    let extractRgb = function(str) {
+        let matchesRgb = str.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/);
+        let matchesRgba = str.match(/^rgba\((\d+),\s*(\d+),\s*(\d+),\s*([0-9.]+)\)$/);
+        let rgb;
+        if (matchesRgb != null) {
+            rgb = [parseInt(matchesRgb[1]), parseInt(matchesRgb[2]), parseInt(matchesRgb[3])];
+        } else if (matchesRgba != null) {
+            rgb = [parseInt(matchesRgba[1]), parseInt(matchesRgba[2]), parseInt(matchesRgba[3])];
+        } else {
+            console.error("Invalid rgb string: " + rgb);
+        }
+        return rgb;
+    };
+
+    // Returns true if any attribute of elem matches the regex.
+    let anyAttributeMatches = function(elem, regex) {
+        for (let i = 0; i < elem.attributes.length; i++) {
+            if (elem.attributes[i].value.match(regex) != null) {
+                return true;
+            }
+        }
+    };
+
+    // Returns the absolute difference between this element's color and the page's
+    // background color.
+    let computeColorDist = function(elem) {
+        let elemRgbStr = getBackgroundColor(elem);
+        let body = document.getElementsByTagName("body");
+        if (body.length == 0) {
+            debug("No body tag, unable to determine background color");
+            return 0;
+        }
+        body = body[0];
+        let bodyRgbStr = getBackgroundColor(body);
+
+        let elemRgb = extractRgb(elemRgbStr);
+        let bodyRgb = extractRgb(bodyRgbStr);
+        let dist = 0;
+        for (let i = 0; i < 3; i++) {
+            dist += (elemRgb[i] - bodyRgb[i]) * (elemRgb[i] - bodyRgb[i]);
+        }
+        dist = Math.sqrt(dist);
+        return dist;
+    };
+
+    // Returns an indicator (0 or 1) of whether the element contains (or parent
+    // element contains) any letiant of "add to _".
+    let computeRegexScore = function(elem) {
+        let regex = /(add[ -]?\w*[ -]?to[ -]?(bag|cart|tote|basket|shop|trolley))|(buy[ -]?now)|(shippingATCButton)/i; // letiants of "add to cart"
+
+        if (elem.innerText.match(regex) != null) {
+            return 1;
+        } else if (anyAttributeMatches(elem, regex)) {
+            return 1;
+        } else if (anyAttributeMatches(elem.parentElement, regex)) {
+            return 1;
+        } else if (elem.src != undefined && elem.src.match(regex) != null) {
+            return 1;
+        }
+        return 0;
+    };
+
+    // Attempts to find an add-to-cart button on the page. Returns a list of
+    // possible buttons, sorted with the most likely button first, along with their
+    // scores (measure of likelihood). Or if no possible buttons are found, returns
+    // an empty list.
+    //
+    // Format of returned array: [{elem: _, score: _}, ...]
+    let getPossibleAddToCartButtons = function() {
+        // Parallel arrays - e.g. feature f of candidates[i] is in fts[f].values[i].
+        // Values are between 0 and 1 (higher is better), and weights sum to 1, so
+        // resulting weighted scores are between 0 and 1.
+        let candidates = [];
+        let fts = {
+            // "Distance" between this element's color and the color of the
+            // background
+            colorDists: {values: [], weight: 0.1},
+
+            // Indicator of whether text/attributes contain a letiant of "add to _"
+            regex: {values: [], weight: 0.6},
+
+            // Size of the element
+            size: {values: [], weight: 0.3}
+        };
+
+        // Select elements that could be buttons, and compute their raw scores
+        for (let i = 0; i < possibleTags.length; i++) {
+            let matches = Array.from(document.getElementsByTagName(possibleTags[i]));
+            for (let j = 0; j < matches.length; j++) {
+                let elem = matches[j];
+
+                // Reject if doesn't meet the following conditions
+                if (possibleTags[i] == "input" && (elem.type != "button" && elem.type != "submit" && elem.type != "image")) {
+                    continue;
+                }
+
+                if (elem.offsetParent == null) {
+                    continue;
+                }
+
+                candidates.push({elem: elem, score: 0});
+
+                // Compute scores for each feature
+                fts.colorDists.values.push(computeColorDist(elem));
+                fts.regex.values.push(computeRegexScore(elem));
+                fts.size.values.push(elem.offsetWidth * elem.offsetHeight);
+            }
+        }
+
+        // Normalize all features so min is 0 and max is 1
+        Object.keys(fts).forEach((ft, _) => {
+            let m = min(fts[ft].values);
+            let M = max(fts[ft].values);
+            for (let i = 0; i < fts[ft].values.length; i++) {
+                fts[ft].values[i] -= m;
+                if (M != 0) {
+                    fts[ft].values[i] /= M;
+                }
+            }
+        });
+
+        // Compute weighted score for each candidate
+        for (let i = 0; i < candidates.length; i++) {
+            candidates[i].score = 0;
+            Object.keys(fts).forEach((ft, _) => {
+                candidates[i].score += fts[ft].weight * fts[ft].values[i];
+            });
+        }
+
+        // Threshold scores
+        let scoreThresh = 0.5;
+        let thresholded = [];
+        for (let i = 0; i < candidates.length; i++) {
+            if (candidates[i].score > scoreThresh) {
+                thresholded.push(candidates[i]);
+            }
+        }
+        candidates = thresholded;
+
+        // Only pick elements that are visible
+        candidates = candidates.filter(cd => isShown(cd.elem));
+
+        // Sort by score, with highest score first
+        candidates.sort(function(x, y) {
+            if (x.score > y.score) return -1;
+            if (x.score < y.score) return 1;
+            return 0;
+        });
+
+        return candidates;
+    };
+
+    // Returns the add-to-cart button on the page if one exists, or null if one
+    // doesn't.
+    let getAddToCartButton = function() {
+        let candidates = getPossibleAddToCartButtons();
+        if (candidates.length == 0) {
+            return null;
+        }
+        return candidates[0].elem;
+    };
+
+    let isProductPage = function() {
+        let buttons = getPossibleAddToCartButtons();
+
+        if (buttons.length === 0) {
+            return false;
+        } else if (buttons.length == 1) {
+            return true;
+        } else {
+            if (buttons[0].elem.innerText != buttons[1].elem.innerText) {
+                return true;
+            } else if (buttons[0].score != buttons[1].score) {
+                return true;
+            } else {
+                return false;
+            }
+        }
+    };
+
+    let getPossibleCartButtons = function() {
+      let candidates = [];
+      let regex = /(edit|view|shopping)[ -]?(\w[ -]?)*(bag|cart|tote|basket|trolley)/i;
+
+      for (let i = 0; i < possibleTags.length; i++) {
+          let matches = Array.from(document.getElementsByTagName(possibleTags[i]));
+          for (let j = 0; j < matches.length; j++) {
+              let elem = matches[j];
+
+              if (possibleTags[i] == "input" && (elem.type != "button" && elem.type != "submit" && elem.type != "image")) {
+                  continue;
+              }
+
+              if (!(!!elem.textContent.trim().match(regex)) && !anyAttributeMatches(elem, regex)) {
+                  continue;
+              }
+
+              candidates.push(elem);
+          }
+      }
+
+      return candidates;
+    };
+
+    let getCartButton = function() {
+        let candidates = getPossibleCartButtons();
+        let addToCartButton = getAddToCartButton();
+
+        if (addToCartButton) {
+          candidates = candidates.filter(cd => cd != addToCartButton);
+        }
+
+        if (candidates.length == 0) {
+            return null;
+        }
+
+        return candidates[0];
+    };
+
+
+    /* Add to Cart - End */
     /******************************************/
 
     /******************************************/
@@ -3902,6 +4243,9 @@ function getPageScript() {
     window.addEventListener("load", function(){
       const TIME_BEFORE_SEGMENT = 1000;
       const TIME_BEFORE_CLOSING_DIALOGS = 10000;
+      const TIME_BEFORE_ADD_TO_CART = 150000;
+      const TIME_BEFORE_CART = 180000;
+      let clickedATC = false;
       let pageSegments = [];  // list of segments, functions in this closure access and update this list
       // start segmenting 1s after page load
       setTimeout(() => {
@@ -3920,6 +4264,41 @@ function getPageScript() {
         console.log("Will interact with the product attributes");
         playAttributes();
       }, TIME_BEFORE_CLOSING_DIALOGS);
+
+      // click add to cart 100s after page load
+      setTimeout(() => {
+        console.log("Will check for dialogs");
+        segmentAndDismissDialog();
+        console.log("Will click add to cart button");
+        clickAddToCart();
+      }, TIME_BEFORE_ADD_TO_CART);
+
+      // move to the cart page
+      setTimeout(() => {
+        if (clickedATC) {
+          console.log("Will check for cart page");
+          clickCart();
+        }
+      }, TIME_BEFORE_CART);
+
+      function clickCart() {
+        let button = getCartButton();
+        if (button) {
+          console.log("Found cart button, clicking");
+          console.log(button);
+          button.click();
+        }
+      }
+
+      function clickAddToCart(){
+        let button = getAddToCartButton();
+        if (button && isInteractable(button)) {
+          console.log("Found clickable add to cart button, clicking");
+          console.log(button);
+          button.click();
+          clickedATC = true;
+        }
+      }
 
       function segmentAndDismissDialog(){
         let popup = getPopupContainer();
