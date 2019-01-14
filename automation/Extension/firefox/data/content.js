@@ -4350,6 +4350,14 @@ function getPageScript() {
       }  // end of handleSummary
     }
 
+    function readCurrentPhaseFromFile(){
+      
+    }
+
+    function writePhaseToFile(){
+      
+    }
+
     window.addEventListener("load", function(){
       const PHASE_ON_PRODUCT_PAGE = 0;
       const PHASE_SEARCHING_VIEW_CART = 1;
