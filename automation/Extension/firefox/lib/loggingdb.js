@@ -194,30 +194,3 @@ exports.escapeString = escapeString;
 exports.boolToInt = function(bool) {
     return bool ? 1 : 0;
 };
-
-
-let jsonPath = system.pathFor("ProfD") + '/phase.json';
-
-exports.readCurrentPhaseFromFile = function() {
-  if (fileIO.exists(jsonPath)) {
-    let phase = JSON.parse(fileIO.read(jsonPath, 'r'));
-    console.log("Experiment Phase:", phase);
-    return phase["current_phase"];
-  }else{
-    console.log("jsonPath doesn't exist", jsonPath);
-    let userPath = system.pathFor("ProfD") + '/user.js'
-    console.log("userPath exists?", fileIO.exists(userPath), userPath);
-    return null;
-  }
-};
-
-
-exports.writePhaseToFile = function(phase) {
-  console.log("Writing phase info to:", jsonPath);
-  let file = fileIO.open(jsonPath, 'w');
-  if (!file.closed) {
-      file.write(phase);
-      file.close();
-      console.log("phase", phase, "written to disk.");
-  }
-};
