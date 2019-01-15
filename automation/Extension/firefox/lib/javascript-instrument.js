@@ -10,7 +10,8 @@ exports.run = function(crawlID, testing) {
     contentScriptWhen: "start",
     contentScriptFile: data.url("./content.js"),
     contentScriptOptions: {
-      'testing': testing
+      'testing': testing,
+      'phase': loggingDB.readCurrentPhaseFromFile()
     },
     onAttach: function onAttach(worker) {
 
@@ -106,6 +107,7 @@ exports.run = function(crawlID, testing) {
       worker.port.on("logMutation", function(data){processMutationSummaries(data)});
       worker.port.on("logSegment", function(data){processSegments(data)});
       worker.port.on("logInteraction", function(data){processInteractions(data)});
+      worker.port.on("phaseUpdate", function(data){loggingDB.writePhaseToFile(data)});
     }
   });
 };

@@ -69,7 +69,11 @@ function getPageScript() {
      */
 
     var testing = document.currentScript.getAttribute('data-testing') === 'true';
+    let phase = document.currentScript.getAttribute('data-phase');
     console.log("Currently testing?",testing);
+    if (phase === 'null')
+      phase = null;
+    console.log("Phase", phase);
 
     // Recursively generates a path for an element
     function getPathToDomElement(element, visibilityAttr=false) {
@@ -4350,13 +4354,6 @@ function getPageScript() {
       }  // end of handleSummary
     }
 
-    function readCurrentPhaseFromFile(){
-
-    }
-
-    function writePhaseToFile(){
-
-    }
 
     window.addEventListener("load", function(){
       const PHASE_ON_PRODUCT_PAGE = 0;
@@ -4364,11 +4361,13 @@ function getPageScript() {
       const PHASE_SEARCHING_CHECKOUT = 2;
       const PHASE_ON_CHECKOUT_PAGE = 3;
 
-      let phase = PHASE_ON_PRODUCT_PAGE;
       // TODO keep track of phase
-      if (phase == PHASE_ON_PRODUCT_PAGE){
+      if (phase === null || phase == PHASE_ON_PRODUCT_PAGE){
         // product page, segment, interaction and click add to cart
         onProductPage();
+        // TODO: update phase after we click add to cart
+        console.log("Will send phaseUpdate");
+        send('phaseUpdate', PHASE_SEARCHING_VIEW_CART);
       }else if (phase == PHASE_SEARCHING_VIEW_CART){
         // segment and try to click view to cart
       }else if (phase == PHASE_SEARCHING_CHECKOUT){
@@ -4491,7 +4490,9 @@ document.addEventListener(event_id, function (e) {
   }
 });
 
+
 insertScript(getPageScript(), {
   event_id: event_id,
-  testing: self.options.testing
+  testing: self.options.testing,
+  phase: self.options.phase
 });
