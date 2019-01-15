@@ -12,7 +12,7 @@ DATA_DIR = os.path.join(os.path.dirname(__file__), 'data')
 
 manager_params, browser_params = TaskManager.load_default_params(NUM_BROWSERS)
 
-date_prefix = '2018-12-02'  # Updated by deployment script
+date_prefix = '2019-01-15'  # Updated by deployment script
 prefix = date_prefix + '_segmentation_pilot'
 manager_params['database_name'] = prefix + '.sqlite'
 manager_params['data_directory'] = '~/' + prefix

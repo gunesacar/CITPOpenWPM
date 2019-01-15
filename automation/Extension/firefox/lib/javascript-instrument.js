@@ -1,6 +1,7 @@
 var pageMod = require("sdk/page-mod");
 const data = require("sdk/self").data;
 var loggingDB = require("./loggingdb.js");
+var ss = require("sdk/simple-storage");
 
 exports.run = function(crawlID, testing) {
 
@@ -9,6 +10,7 @@ exports.run = function(crawlID, testing) {
     include: "*",
     contentScriptWhen: "start",
     contentScriptFile: data.url("./content.js"),
+    //attachTo: ["top"],
     contentScriptOptions: {
       'testing': testing
     },
@@ -67,6 +69,16 @@ exports.run = function(crawlID, testing) {
         loggingDB.saveRecord("interaction_logs", update);
       }
 
+      function storePhase(data){
+        console.log("Will store phase", data)
+        ss.storage.dp_phase = data;
+      }
+
+      function getPhase(){
+        console.log("Will emit phase")
+        worker.port.emit("phase", ss.storage.dp_phase || 0);
+      }
+
       function processCallsAndValues(data) {
         var update = {};
         update["crawl_id"] = crawlID;
@@ -106,6 +118,8 @@ exports.run = function(crawlID, testing) {
       worker.port.on("logMutation", function(data){processMutationSummaries(data)});
       worker.port.on("logSegment", function(data){processSegments(data)});
       worker.port.on("logInteraction", function(data){processInteractions(data)});
+      worker.port.on("storePhase", function(data){storePhase(data)});
+      worker.port.on("getPhase", function(data){getPhase()});
     }
   });
 };

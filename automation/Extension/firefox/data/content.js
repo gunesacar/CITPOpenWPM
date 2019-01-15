@@ -3942,7 +3942,7 @@ function getPageScript() {
 
         // Normalize all features so min is 0 and max is 1
         Object.keys(fts).forEach((ft, _) => {
-            if (!fts[ft].values){
+            if (fts[ft].values.length){
               let m = min(fts[ft].values);
               let M = max(fts[ft].values);
               for (let i = 0; i < fts[ft].values.length; i++) {
@@ -4124,6 +4124,76 @@ function getPageScript() {
     /******************************************/
 
     /******************************************/
+    /* Mutation processing - Start */
+
+    function onNodeAdded(node, summary, timeStamp){
+      if ((node.nodeType == TEXTNODE_NODETYPE) && summary.added.includes(node.parentNode)){
+        console.log("Will skip the textnode, its parent is also added", node);
+        return;
+      }
+      logMutationSummary("NodeAdded", node, summary, timeStamp);
+    }
+    const EXCLUDE_NODE_REMOVED = true;  // do not process node removed events
+    function onNodeRemoved(node, summary, timeStamp){
+      if (!EXCLUDE_NODE_REMOVED)
+        logMutationSummary("NodeRemoved", node, summary, timeStamp);
+    }
+
+    function onNodeReparented(node, summary, timeStamp){
+      logMutationSummary("NodeReparented", node, summary, timeStamp);
+    }
+
+    function onNodeReordered(node, summary, timeStamp){
+      logMutationSummary("NodeReordered", node, summary, timeStamp);
+    }
+
+    function onCharacterDataChanged(node, summary, timeStamp){
+      logMutationSummary("CharacterDataChanged", node, summary, timeStamp);
+    }
+
+    function removeDuplicates(arr){
+      return Array.from(new Set(arr))
+    }
+
+    function onAttrsChanged(attrChanges, summary, timeStamp){
+      for (var attrName in attrChanges){
+        var nodes = new Set(attrChanges[attrName]);
+        for (var node of nodes){
+          logMutationSummary("AttributeChanged", node, summary, timeStamp, attrName);
+        }
+      }
+    }
+
+    function findSegmentParents(nodes, pageSegments){
+      // Find and return ancestors that are segments.
+      // For nodes without ancestor segments, return the node itself
+      let ancestorSegments = [];  //ancestor segments
+      let nodesWithoutAncestorSegments = [];  // nodes without ancestor segments
+      for (let node of nodes){
+        let origNode = node;
+        let parentFound = false;
+        while(node !== null){
+          if (node && pageSegments.includes(node)){
+            ancestorSegments.push(node);
+            parentFound = true;
+            break;
+          }else{
+            node = node.parentNode;
+          }
+        }
+        if (!parentFound)
+          nodesWithoutAncestorSegments.push(origNode);
+      }
+      //console.log("ancestorSegments", ancestorSegments.length, ancestorSegments,
+      //    "nodesWithoutAncestorSegments", nodesWithoutAncestorSegments.length, nodesWithoutAncestorSegments);
+      // return combined and uniqued arrays
+      return Array.from(new Set(ancestorSegments.concat(nodesWithoutAncestorSegments)));
+    }
+
+    /* Mutation processing - End */
+    /******************************************/
+
+    /******************************************/
     /* Segments processing - Start */
 
     function countNodesOfType(el, nodeType){
@@ -4260,16 +4330,19 @@ function getPageScript() {
       return inViewport(node, boundingRect);
     }
 
-    function onClickedAddToCart(){
-
+    function clickAddToCart(){
+      let add2cart = getAddToCartButton();
+      if (add2cart){
+        try{
+          add2cart.click();
+        }catch(){
+          // TODO: what to do? return?
+        }
+      }
     }
 
-    function onProductPage(){
-      if (!isProductPage()){
-        console.log("Not a product page, will skip. frame url/top url:", location.href, window.top);
-        return;
-      }
-
+    function handleProductPage(){
+      console.log("Found a product page, will process. frame url/top url:", location.href, window.top);
       const TIME_BEFORE_SEGMENT = 1000;
       const TIME_BEFORE_CLOSING_DIALOGS = 10000;
       let pageSegments = [];  // list of segments, functions in this closure access and update this list
@@ -4277,6 +4350,10 @@ function getPageScript() {
       setTimeout(() => {
         console.log("Will check for dialogs");
         segmentAndDismissDialog();
+        if (!isProductPage()){
+          console.log("Not a product page, will skip. frame url/top url:", window.document.URL, window.top);
+          return;
+        }
         console.log("Will segment the page body");
         pageSegments.push(segmentAndRecord(document.body));
         observerSummary = new MutationSummary({
@@ -4289,6 +4366,7 @@ function getPageScript() {
         segmentAndDismissDialog();
         console.log("Will interact with the product attributes");
         playAttributes();
+        clickAddToCart();
       }, TIME_BEFORE_CLOSING_DIALOGS);
 
       function segmentAndDismissDialog(){
@@ -4302,6 +4380,7 @@ function getPageScript() {
           }
           closeDialog(popup);
         }
+        console.log("pageSegments.length", pageSegments.length)
       }
 
       function handleSummary(summaries) {
@@ -4351,28 +4430,51 @@ function getPageScript() {
       }  // end of handleSummary
     }
 
+    // https://stackoverflow.com/a/326076
+    function isInIframe() {
+      try {
+        return window.self !== window.top;
+      } catch (e) {
+        return true;
+      }
+    }
+
     const PHASE_ON_PRODUCT_PAGE = 0;
     const PHASE_SEARCHING_VIEW_CART = 1;
     const PHASE_SEARCHING_CHECKOUT = 2;
     const PHASE_ON_CHECKOUT_PAGE = 3;
-    // let phase = document.currentScript.getAttribute('data-phase');
-    let phase = localStorage["phase"] || PHASE_ON_PRODUCT_PAGE;
-    console.log("Phase", phase);
+    //let phase =  parseInt(document.currentScript.getAttribute('data-phase'));
 
     window.addEventListener("load", function(){
+      let phase = localStorage["openwpm-phase"] || PHASE_ON_PRODUCT_PAGE;
+      //let phase = browser.storage.local.get("phase") || PHASE_ON_PRODUCT_PAGE;
+
+      console.log("Phase", phase, window.document.URL);
 
       // TODO keep track of phase
       if (phase == PHASE_ON_PRODUCT_PAGE){
         // product page, segment, interaction and click add to cart
-        onProductPage();
+        handleProductPage();
         // TODO: update phase after we click add to cart
-        console.log("Will update phase");
-        // send('phaseUpdate', PHASE_SEARCHING_VIEW_CART);
-        localStorage["phase"] = PHASE_SEARCHING_VIEW_CART;
+        if (!isInIframe()){
+          console.log("Will update phase");
+          send('storePhase', PHASE_SEARCHING_VIEW_CART);
+        }
+        //localStorage["phase"] = PHASE_SEARCHING_VIEW_CART;
+        //browser.storage.local.set({'phase': PHASE_SEARCHING_VIEW_CART});
+        //send({'phase': })
       }else if (phase == PHASE_SEARCHING_VIEW_CART){
         // segment and try to click view to cart
+        if (!isInIframe()){
+          console.log("Will update phase");
+          send('storePhase', PHASE_SEARCHING_CHECKOUT);
+        }
       }else if (phase == PHASE_SEARCHING_CHECKOUT){
         // segment and try to click checkout
+        if (!isInIframe()){
+          console.log("Will update phase");
+          send('storePhase', PHASE_ON_CHECKOUT_PAGE);
+        }
       }else if (phase == PHASE_ON_CHECKOUT_PAGE){
         // on checkout, just segment
       }
@@ -4382,74 +4484,11 @@ function getPageScript() {
     /******************************************/
 
     /******************************************/
-    /* Mutation processing - Start */
+    /* Workflow - Start */
 
-    function onNodeAdded(node, summary, timeStamp){
-      if ((node.nodeType == TEXTNODE_NODETYPE) && summary.added.includes(node.parentNode)){
-        console.log("Will skip the textnode, its parent is also added", node);
-        return;
-      }
-      logMutationSummary("NodeAdded", node, summary, timeStamp);
-    }
-    const EXCLUDE_NODE_REMOVED = true;  // do not process node removed events
-    function onNodeRemoved(node, summary, timeStamp){
-      if (!EXCLUDE_NODE_REMOVED)
-        logMutationSummary("NodeRemoved", node, summary, timeStamp);
-    }
-
-    function onNodeReparented(node, summary, timeStamp){
-      logMutationSummary("NodeReparented", node, summary, timeStamp);
-    }
-
-    function onNodeReordered(node, summary, timeStamp){
-      logMutationSummary("NodeReordered", node, summary, timeStamp);
-    }
-
-    function onCharacterDataChanged(node, summary, timeStamp){
-      logMutationSummary("CharacterDataChanged", node, summary, timeStamp);
-    }
-
-    function removeDuplicates(arr){
-      return Array.from(new Set(arr))
-    }
-
-    function onAttrsChanged(attrChanges, summary, timeStamp){
-      for (var attrName in attrChanges){
-        var nodes = new Set(attrChanges[attrName]);
-        for (var node of nodes){
-          logMutationSummary("AttributeChanged", node, summary, timeStamp, attrName);
-        }
-      }
-    }
-
-    function findSegmentParents(nodes, pageSegments){
-      // Find and return ancestors that are segments.
-      // For nodes without ancestor segments, return the node itself
-      let ancestorSegments = [];  //ancestor segments
-      let nodesWithoutAncestorSegments = [];  // nodes without ancestor segments
-      for (let node of nodes){
-        let origNode = node;
-        let parentFound = false;
-        while(node !== null){
-          if (node && pageSegments.includes(node)){
-            ancestorSegments.push(node);
-            parentFound = true;
-            break;
-          }else{
-            node = node.parentNode;
-          }
-        }
-        if (!parentFound)
-          nodesWithoutAncestorSegments.push(origNode);
-      }
-      //console.log("ancestorSegments", ancestorSegments.length, ancestorSegments,
-      //    "nodesWithoutAncestorSegments", nodesWithoutAncestorSegments.length, nodesWithoutAncestorSegments);
-      // return combined and uniqued arrays
-      return Array.from(new Set(ancestorSegments.concat(nodesWithoutAncestorSegments)));
-    }
-
-    /* Mutation processing - End */
+    /* Workflow - End */
     /******************************************/
+
 
 
 
@@ -4491,8 +4530,15 @@ document.addEventListener(event_id, function (e) {
   }
 });
 
+// let phase = storage.local.get("phase") || 0;
 
 insertScript(getPageScript(), {
   event_id: event_id,
   testing: self.options.testing
 });
+
+self.port.on("phase", function(phase){
+  console.log("Updating phase in content js", phase, window.document.URL)
+  localStorage["openwpm-phase"] = phase
+});
+self.port.emit("getPhase", "");
