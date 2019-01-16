@@ -4441,7 +4441,7 @@ function getPageScript() {
 
     async function tellSeleniumToQuit(reason=""){
       // set a flag for selenium custom function to read and quit
-      console.log("Will quit")
+      console.log("Will quit. Phase:", phase, localStorage['openwpm-phase'])
       localStorage['openwpm-quit-selenium'] = true;
       localStorage['openwpm-quit-reason'] = reason;
       await openwpmSleep(3000);  // wait to let selenium see our signal
@@ -4565,7 +4565,8 @@ function getPageScript() {
       send('storePhase', newPhase);
     }
 
-    function clickAddToCart(){
+    const SLEEP_AFTER_PHASE_UPDATE = 3000;
+    async function clickAddToCart(){
       let add2cart = getAddToCartButton();
       if (!add2cart){
         console.log("Cannot find any add to cart buttons, will quit");
@@ -4574,6 +4575,7 @@ function getPageScript() {
       try{
         console.log("Will click add to cart");
         updatePhase(PHASE_SEARCHING_VIEW_CART);
+        await openwpmSleep(SLEEP_AFTER_PHASE_UPDATE);
         add2cart.click();
         console.log("Clicked add to cart");
         clickCartButton();
@@ -4583,7 +4585,7 @@ function getPageScript() {
       }
     }
 
-    function clickCartButton(){
+    async function clickCartButton(){
       let cartButton = getCartButton();
       if (!cartButton){
         console.log("Cannot find any view cart buttons, will quit");
@@ -4592,6 +4594,7 @@ function getPageScript() {
       try{
         console.log("Will click view cart button, will update phase");
         updatePhase(PHASE_SEARCHING_CHECKOUT);
+        await openwpmSleep(SLEEP_AFTER_PHASE_UPDATE);
         cartButton.click();
         console.log("Clicked view cart button");
         clickCheckoutButton()
@@ -4601,7 +4604,7 @@ function getPageScript() {
       }
     }
 
-    function clickCheckoutButton(){
+    async function clickCheckoutButton(){
       let checkoutButton = getCheckoutButton();
       if (!checkoutButton){
         console.log("Cannot find any checkout buttons, will quit");
@@ -4610,6 +4613,7 @@ function getPageScript() {
       try{
         console.log("Will click checkout");
         updatePhase(PHASE_ON_CHECKOUT_PAGE);
+        await openwpmSleep(SLEEP_AFTER_PHASE_UPDATE);
         checkoutButton.click();
         console.log("Clicked checkout button");
       }catch(error){
@@ -4622,6 +4626,7 @@ function getPageScript() {
     window.addEventListener("load", function(){
       let pageSegments = [];  // list of segments, functions in this closure access and update this list
       phase = localStorage["openwpm-phase"] || PHASE_ON_PRODUCT_PAGE;
+      updatePhase(phase);
       //let phase = browser.storage.local.get("phase") || PHASE_ON_PRODUCT_PAGE;
       console.log("Phase after onload", phase, window.document.URL);
 
