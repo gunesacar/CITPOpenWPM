@@ -4558,11 +4558,12 @@ function getPageScript() {
       }, TIME_BEFORE_SEGMENT);
     }
 
-    function updatePhase(newPhase){
+    function updatePhase(newPhase, updateBgScript=true){
       phase = newPhase;
       console.log("Will update phase to", newPhase);
       localStorage['openwpm-phase'] = newPhase;
-      send('storePhase', newPhase);
+      if(updateBgScript)
+        send('storePhase', newPhase);
     }
 
     const SLEEP_AFTER_PHASE_UPDATE = 3000;
@@ -4626,31 +4627,26 @@ function getPageScript() {
     window.addEventListener("load", function(){
       let pageSegments = [];  // list of segments, functions in this closure access and update this list
       phase = localStorage["openwpm-phase"] || PHASE_ON_PRODUCT_PAGE;
-      updatePhase(phase);
-      //let phase = browser.storage.local.get("phase") || PHASE_ON_PRODUCT_PAGE;
-      console.log("Phase after onload", phase, window.document.URL);
+      if (!isInIframe()){
+        updatePhase(phase, updateBgScript=false);
+        //let phase = browser.storage.local.get("phase") || PHASE_ON_PRODUCT_PAGE;
+        console.log("Phase after onload", phase, window.document.URL);
+      }
 
+      // run segmentation in all frames
+      runSegmentationAndMutationSummaryObserver(pageSegments);
+      if (isInIframe())  // don't interact with the page if framed
+        return;
       if (phase == PHASE_ON_PRODUCT_PAGE){
-        // product page, segment, interaction and click add to cart
-        //localStorage["phase"] = PHASE_SEARCHING_VIEW_CART;
-        //browser.storage.local.set({'phase': PHASE_SEARCHING_VIEW_CART});
-        //send({'phase': })
-        runSegmentationAndMutationSummaryObserver(pageSegments);
-        if (!isInIframe())
-          interactWithProductPage(pageSegments);
+        interactWithProductPage(pageSegments);
       }else if (phase == PHASE_SEARCHING_VIEW_CART){
         // segment and try to click view to cart
-        runSegmentationAndMutationSummaryObserver(pageSegments);
-        if (!isInIframe())
-          clickCartButton();
+        clickCartButton();
       }else if (phase == PHASE_SEARCHING_CHECKOUT){
         // segment and try to click checkout
-        runSegmentationAndMutationSummaryObserver(pageSegments);
-        if (!isInIframe())
-          clickCheckoutButton();
+        clickCheckoutButton();
       }else if (phase == PHASE_ON_CHECKOUT_PAGE){
         // on checkout, just segment and quit
-        runSegmentationAndMutationSummaryObserver(pageSegments);
         setTimeout(() => {
           tellSeleniumToQuit("Success");
         }, 10000);  // wait 10s before quitting
@@ -4719,4 +4715,16 @@ self.port.on("phase", function(phase){
   localStorage["openwpm-phase"] = phase
 });
 
-self.port.emit("getPhase", "");
+
+//https://stackoverflow.com/a/326076
+function isInIframe() {
+  try {
+    return window.self !== window.top;
+  }catch (e) {
+    return true;
+  }
+}
+
+// we only care about stage in the main document
+if (!isInIframe())
+  self.port.emit("getPhase", "");
