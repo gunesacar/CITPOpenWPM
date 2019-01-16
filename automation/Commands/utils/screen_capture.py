@@ -32,6 +32,14 @@ def capture_screenshots(visit_duration, **kwargs):
     t_begin = time()
     for idx in xrange(0, visit_duration):
         t0 = time()
+        quit_selenium = driver.execute_script("return window.quit_selenium;")
+        phase = driver.execute_script("return localStorage['openwpm-phase'];")
+        if quit_selenium:
+            logger.info(
+                "Received quit signal from selenium on %s Visit ID: %d phase: %s" %
+                (driver.current_url, visit_id, phase))
+            return
+
         try:
             img_b64 = driver.get_screenshot_as_base64()
         except Exception:
@@ -49,8 +57,9 @@ def capture_screenshots(visit_duration, **kwargs):
         save_screenshot_b64(out_png_path, img_b64, logger)
         last_image_crc = new_image_crc
         capture_duration = time() - t0
-        logger.info("Save_screenshot took %0.1f on %s Visit ID: %d Loop: %d" %
-                    (capture_duration, driver.current_url, visit_id, idx))
+        logger.info(
+            "Save_screenshot took %0.1f on %s Visit ID: %d Loop: %d Phase: %s"
+            % (capture_duration, driver.current_url, visit_id, idx, phase))
 
         sleep(max([0, 1-capture_duration]))
         if (time() - t_begin) > visit_duration:  # timeout

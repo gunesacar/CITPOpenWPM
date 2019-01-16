@@ -57,6 +57,7 @@ exports.run = function(crawlID, testing) {
         update["num_buttons"] = loggingDB.escapeString(data.numButtons);
         update["num_imgs"] = loggingDB.escapeString(data.numImgs);
         update["num_anchors"] = loggingDB.escapeString(data.numAnchors);
+        update["phase"] = loggingDB.escapeString(data.phase);
         update["time_stamp"] = data.mutationTimeStamp;
         loggingDB.saveRecord("segments", update);
       }

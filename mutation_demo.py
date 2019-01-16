@@ -22,8 +22,9 @@ for i in range(NUM_BROWSERS):
 browser_params[0]['headless'] = False  # Launch only browser 0 headless
 
 # Update TaskManager configuration (use this for crawl-wide settings)
-manager_params['data_directory'] = '~/openwpm-mutation/'
-manager_params['log_directory'] = '~/openwpm-mutation/'
+manager_params['data_directory'] = '~/openwpm-mutation-t2/'
+manager_params['log_directory'] = '~/openwpm-mutation-t2/'
+manager_params['testing'] = True
 
 # Instantiates the measurement platform
 # Commands time out by default after 60 seconds

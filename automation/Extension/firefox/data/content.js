@@ -362,7 +362,7 @@ function getPageScript() {
 
     // For segmentation results
     function logSegment(nodeName, nodeId, innerText, style, boundingRect, timeStamp, outerHtml,
-        longestText, longestTextBoundingRect, longestTextStyle, numButtons, numImgs, numAnchors) {
+        longestText, longestTextBoundingRect, longestTextStyle, numButtons, numImgs, numAnchors, phase) {
       if(inLog)
         return;
       inLog = true;
@@ -388,7 +388,8 @@ function getPageScript() {
           numButtons: numButtons,
           numImgs: numImgs,
           numAnchors: numAnchors,
-          mutationTimeStamp: timeStamp
+          mutationTimeStamp: timeStamp,
+          phase: phase
         }
         send('logSegment', msg);
       }
@@ -2308,6 +2309,7 @@ function getPageScript() {
 
     /******************************************/
     /* Common JS - Start */
+
     const blockElements = ['div', 'section', 'article', 'aside', 'nav',
       'header', 'footer', 'main', 'form', 'fieldset', 'table'
     ];
@@ -2696,11 +2698,9 @@ function getPageScript() {
             if (isShown(child))
               return true;
           }
-          return false;
         }
-
-        if (children.length > 0) {
-          return true;
+        else {
+          return children.length > 0 ? true : false;
         }
       }
 
@@ -3701,6 +3701,8 @@ function getPageScript() {
 
       var combinations = elementCombinations(attributes);
       var randomCombinations = getRandomSubarray(combinations, 5);
+      if (testing) // use one combination when testing to save time
+        randomCombinations = getRandomSubarray(combinations, 1);
 
       function clickHandler(element) {
         if (element) {
@@ -3876,11 +3878,9 @@ function getPageScript() {
         return dist;
     };
 
-    // Returns an indicator (0 or 1) of whether the element contains (or parent
-    // element contains) any letiant of "add to _".
-    let computeRegexScore = function(elem) {
-        let regex = /(add[ -]?\w*[ -]?to[ -]?(bag|cart|tote|basket|shop|trolley))|(buy[ -]?now)|(shippingATCButton)/i; // letiants of "add to cart"
-
+    // Returns an indicator (0 or 1) of whether the element (or parent element)
+    // matches the given regular expression.
+    let computeRegexScore = function(elem, regex) {
         if (elem.innerText.match(regex) != null) {
             return 1;
         } else if (anyAttributeMatches(elem, regex)) {
@@ -3903,6 +3903,7 @@ function getPageScript() {
         // Parallel arrays - e.g. feature f of candidates[i] is in fts[f].values[i].
         // Values are between 0 and 1 (higher is better), and weights sum to 1, so
         // resulting weighted scores are between 0 and 1.
+        let regex = /(add[ -]?\w*[ -]?to[ -]?(bag|cart|tote|basket|shop|trolley))|(buy[ -]?now)|(shippingATCButton)/i; // variants of "add to cart"
         let candidates = [];
         let fts = {
             // "Distance" between this element's color and the color of the
@@ -3935,23 +3936,23 @@ function getPageScript() {
 
                 // Compute scores for each feature
                 fts.colorDists.values.push(computeColorDist(elem));
-                fts.regex.values.push(computeRegexScore(elem));
+                fts.regex.values.push(computeRegexScore(elem, regex));
                 fts.size.values.push(elem.offsetWidth * elem.offsetHeight);
             }
         }
 
         // Normalize all features so min is 0 and max is 1
         Object.keys(fts).forEach((ft, _) => {
-            if (fts[ft].values.length){
-              let m = min(fts[ft].values);
-              let M = max(fts[ft].values);
-              for (let i = 0; i < fts[ft].values.length; i++) {
-                  fts[ft].values[i] -= m;
-                  if (M != 0) {
-                      fts[ft].values[i] /= M;
-                  }
-              }
+          if (!fts[ft].values){
+            let m = min(fts[ft].values);
+            let M = max(fts[ft].values);
+            for (let i = 0; i < fts[ft].values.length; i++) {
+                fts[ft].values[i] -= m;
+                if (M != 0) {
+                    fts[ft].values[i] /= M;
+                }
             }
+          }
         });
 
         // Compute weighted score for each candidate
@@ -4015,7 +4016,7 @@ function getPageScript() {
 
     let getPossibleCartButtons = function() {
       let candidates = [];
-      let regex = /(edit|view|shopping)[ -]?(\w[ -]?)*(bag|cart|tote|basket|trolley)/i;
+      let regex = /(edit|view|shopping|addedto|my)[ -]?(\w[ -]?)*(bag|cart|tote|basket|trolley)/i;
 
       for (let i = 0; i < possibleTags.length; i++) {
           let matches = Array.from(document.getElementsByTagName(possibleTags[i]));
@@ -4051,6 +4052,110 @@ function getPageScript() {
 
         return candidates[0];
     };
+
+    // Attempts to find a checkout button on the page. Returns a list of possible
+    // buttons, sorted with the most likely button first, along with their scores
+    // (measure of likelihood). Or if no possible buttons are found, returns
+    // an empty list.
+    //
+    // Format of returned array: [{elem: _, score: _}, ...]
+    let getPossibleCheckoutButtons = function() {
+        // Parallel arrays - e.g. feature f of candidates[i] is in fts[f].values[i].
+        // Values are between 0 and 1 (higher is better), and weights sum to 1, so
+        // resulting weighted scores are between 0 and 1.
+        let regex1 = /check[ -]?out/i;
+        let regex2 = /(proceed|continue)[ -]?(to)?[ -]?check[ -]?out/i;
+        let candidates = [];
+        let fts = {
+            // "Distance" between this element's color and the color of the
+            // background
+            colorDists: {values: [], weight: 0.1},
+
+            // Indicator of whether text/attributes contain variants of "checkout"
+            regex1: {values: [], weight: 0.5},
+            regex2: {values: [], weight: 0.1},
+
+            // Size of the element
+            size: {values: [], weight: 0.3}
+        };
+
+        // Select elements that could be buttons, and compute their raw scores
+        for (let i = 0; i < possibleTags.length; i++) {
+            let matches = Array.from(document.getElementsByTagName(possibleTags[i]));
+            for (let j = 0; j < matches.length; j++) {
+                let elem = matches[j];
+
+                // Reject if doesn't meet the following conditions
+                if (possibleTags[i] == "input" && (elem.type != "button" && elem.type != "submit" && elem.type != "image")) {
+                    continue;
+                }
+
+                if (elem.offsetParent == null) {
+                    continue;
+                }
+
+                candidates.push({elem: elem, score: 0});
+
+                // Compute scores for each feature
+                fts.colorDists.values.push(computeColorDist(elem));
+                fts.regex1.values.push(computeRegexScore(elem, regex1));
+                fts.regex2.values.push(computeRegexScore(elem, regex2));
+                fts.size.values.push(elem.offsetWidth * elem.offsetHeight);
+            }
+        }
+
+        // Normalize all features so min is 0 and max is 1
+        Object.keys(fts).forEach((ft, _) => {
+            let m = min(fts[ft].values);
+            let M = max(fts[ft].values);
+            for (let i = 0; i < fts[ft].values.length; i++) {
+                fts[ft].values[i] -= m;
+                if (M != 0) {
+                    fts[ft].values[i] /= M;
+                }
+            }
+        });
+
+        // Compute weighted score for each candidate
+        for (let i = 0; i < candidates.length; i++) {
+            candidates[i].score = 0;
+            Object.keys(fts).forEach((ft, _) => {
+                candidates[i].score += fts[ft].weight * fts[ft].values[i];
+            });
+        }
+
+        // Threshold scores
+        let scoreThresh = 0.5;
+        let thresholded = [];
+        for (let i = 0; i < candidates.length; i++) {
+            if (candidates[i].score > scoreThresh) {
+                thresholded.push(candidates[i]);
+            }
+        }
+        candidates = thresholded;
+
+        // Only pick elements that are visible
+        candidates = candidates.filter(cd => isShown(cd.elem));
+
+        // Sort by score, with highest score first
+        candidates.sort(function(x, y) {
+            if (x.score > y.score) return -1;
+            if (x.score < y.score) return 1;
+            return 0;
+        });
+
+        return candidates;
+    };
+
+    // Returns the checkout button if one exists, or null if it doesn't.
+    let getCheckoutButton = function() {
+        let candidates = getPossibleCheckoutButtons();
+        if (candidates.length == 0) {
+            return null;
+        }
+        return candidates[0].elem;
+    };
+
 
     /* extract_add_to_cart.js - End */
     /******************************************/
@@ -4288,11 +4393,12 @@ function getPageScript() {
                   ", numButtons:", numButtons,
                   ", numImgs:", numImgs,
                   ", numAnchors:", numAnchors,
+                  ", phase:", phase,
                     );
       // TODO: pass all the info that we want to store
       logSegment(node.nodeName, nodeId, innerText,
           style, boundingRect, timeStamp, outerHtml, longestText,
-          longestTextBoundingRect, longestTextStyle, numButtons, numImgs, numAnchors);
+          longestTextBoundingRect, longestTextStyle, numButtons, numImgs, numAnchors, phase);
     }
 
     function segmentAndRecord(element){
@@ -4330,104 +4436,93 @@ function getPageScript() {
       return inViewport(node, boundingRect);
     }
 
-    function clickAddToCart(){
-      let add2cart = getAddToCartButton();
-      if (add2cart){
-        try{
-          add2cart.click();
-        }catch(){
-          // TODO: what to do? return?
-        }
+    async function tellSeleniumToQuit(){
+      // set a flag for selenium custom function to read and quit
+      window.quit_selenium = true;
+      await sleep(5000);  // wait for five seconds to let selenium see our signal
+    }
+    //if (testing)
+      //tellSeleniumToQuit()
+
+    function segmentAndDismissDialog(pageSegments){
+      let popup = getPopupContainer();
+      if (popup){
+        console.log("Found a dialog, will segment and then close the dialog");
+        let popupSegment = segmentAndRecord(popup);
+        pageSegments.push(popupSegment);
+        pageSegments = removeDuplicates(pageSegments);
+        closeDialog(popup);
       }
+      console.log("pageSegments.length", pageSegments.length)
+      return pageSegments;
     }
 
-    function handleProductPage(){
-      console.log("Found a product page, will process. frame url/top url:", location.href, window.top);
-      const TIME_BEFORE_SEGMENT = 1000;
-      const TIME_BEFORE_CLOSING_DIALOGS = 10000;
-      let pageSegments = [];  // list of segments, functions in this closure access and update this list
-      // start segmenting 1s after page load
-      setTimeout(() => {
-        console.log("Will check for dialogs");
-        segmentAndDismissDialog();
-        if (!isProductPage()){
-          console.log("Not a product page, will skip. frame url/top url:", window.document.URL, window.top);
-          return;
-        }
-        console.log("Will segment the page body");
-        pageSegments.push(segmentAndRecord(document.body));
-        observerSummary = new MutationSummary({
-          callback: handleSummary, queries: [{all: true}]})
-      }, TIME_BEFORE_SEGMENT);
 
-      // close dialog 10s after page load
-      setTimeout(() => {
-        console.log("Will check for dialogs");
-        segmentAndDismissDialog();
-        console.log("Will interact with the product attributes");
-        playAttributes();
-        clickAddToCart();
-      }, TIME_BEFORE_CLOSING_DIALOGS);
-
-      function segmentAndDismissDialog(){
-        let popup = getPopupContainer();
-        if (popup){
-          console.log("Found a dialog, will segment and then close the dialog");
-          let popupSegment = segmentAndRecord(popup);
-          if (pageSegments){
-            pageSegments.push(popupSegment);
-            pageSegments = removeDuplicates(pageSegments);
-          }
-          closeDialog(popup);
-        }
-        console.log("pageSegments.length", pageSegments.length)
+    function handleSummary(summaries, pageSegments=[]) {
+      // MutationSummary returns one summary for each query - we've one query
+      let timeStamp = new Date().toISOString();
+      var summary = summaries[0];
+      //added, reparented, reordered, attrsChanged: re-segment the
+      // element's (old) segment, take snapshot(s) of the new segments
+      let nodesToResegment = summary.added.concat(summary.reparented).concat(summary.reordered);
+      for (let attrName in summary.attributeChanged){
+        nodesToResegment = nodesToResegment.concat(summary.attributeChanged[attrName])
       }
+      nodesToResegment = nodesToResegment.filter(node => shouldProcessMutationNode(node));
 
-      function handleSummary(summaries) {
-        // MutationSummary returns one summary for each query - we've one query
-        let timeStamp = new Date().toISOString();
-        var summary = summaries[0];
-        //added, reparented, reordered, attrsChanged: re-segment the
-        // element's (old) segment, take snapshot(s) of the new segments
-        let nodesToResegment = summary.added.concat(summary.reparented).concat(summary.reordered);
-        for (let attrName in summary.attributeChanged){
-          nodesToResegment = nodesToResegment.concat(summary.attributeChanged[attrName])
-        }
-        nodesToResegment = nodesToResegment.filter(node => shouldProcessMutationNode(node));
+      let charChangedNodes = summary.characterDataChanged;
+      charChangedNodes = charChangedNodes.filter(node => shouldProcessMutationNode(node));
+      charChangedNodes = charChangedNodes.filter(node => !nodesToResegment.includes(node));
 
-        let charChangedNodes = summary.characterDataChanged;
-        charChangedNodes = charChangedNodes.filter(node => shouldProcessMutationNode(node));
-        charChangedNodes = charChangedNodes.filter(node => !nodesToResegment.includes(node));
-
-        // Get the parents
-        if (nodesToResegment.length){
-          let nodesToSegment = findSegmentParents(nodesToResegment, pageSegments);
-          nodesToSegment = nodesToSegment.filter(node => shouldProcessMutationNode(node));
-          if (nodesToSegment){
-            let t0 = performance.now()
-            for (let node of nodesToSegment){
-              // call segmentation
-              let newSegments = segmentAndRecord(node);
-              if (newSegments && newSegments.length){
-                pageSegments.push(newSegments);
-                pageSegments = removeDuplicates(pageSegments);
-              }
+      // Get the parents
+      if (nodesToResegment.length){
+        let nodesToSegment = findSegmentParents(nodesToResegment, pageSegments);
+        nodesToSegment = nodesToSegment.filter(node => shouldProcessMutationNode(node));
+        if (nodesToSegment){
+          let t0 = performance.now()
+          for (let node of nodesToSegment){
+            // call segmentation
+            let newSegments = segmentAndRecord(node);
+            if (newSegments && newSegments.length){
+              pageSegments.push(newSegments);
+              pageSegments = removeDuplicates(pageSegments);
             }
-            console.log("Mutation summary segmentation took", (performance.now() - t0), pageSegments.length);
           }
+          console.log("Mutation summary segmentation took", (performance.now() - t0), pageSegments.length);
         }
-        if (charChangedNodes.length){
-          let nodesToRecord = findSegmentParents(charChangedNodes, pageSegments);
+      }
+      if (charChangedNodes.length){
+        let nodesToRecord = findSegmentParents(charChangedNodes, pageSegments);
 
-          nodesToRecord = nodesToRecord.filter(
-              node => shouldProcessMutationNode(node)).filter(
-                  node => !nodesToSegment.has(node));
-          // record node details
-          for (let node of nodesToRecord){
-            logSegmentDetails(node, timeStamp);
-          }
+        nodesToRecord = nodesToRecord.filter(
+            node => shouldProcessMutationNode(node)).filter(
+                node => !nodesToSegment.has(node));
+        // record node details
+        for (let node of nodesToRecord){
+          logSegmentDetails(node, timeStamp);
         }
-      }  // end of handleSummary
+      }
+    }  // end of handleSummary
+
+    const TIME_BEFORE_SEGMENT = 1000;
+    const TIME_BEFORE_CLOSING_DIALOGS = 10000;
+
+    //https://gist.github.com/eteeselink/81314282c95cd692ea1d
+    const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+    async function interactWithProductPage(pageSegments){
+      await sleep(TIME_BEFORE_CLOSING_DIALOGS);
+      console.log("Will check for dialogs");
+      pageSegments = segmentAndDismissDialog(pageSegments);
+      if (isProductPage()){
+        console.log("Found a product page, will interact and click add to cart. frame url/top url:", window.document.URL, window.top);
+        playAttributes();
+        console.log("Will click add to cart. frame url/top url:", window.document.URL, window.top);
+        clickAddToCart();
+      }else{
+        console.log("Not a product page, will skip. frame url/top url:", window.document.URL, window.top);
+        // TODO: flag exit to selenium 
+      }
     }
 
     // https://stackoverflow.com/a/326076
@@ -4445,38 +4540,108 @@ function getPageScript() {
     const PHASE_ON_CHECKOUT_PAGE = 3;
     //let phase =  parseInt(document.currentScript.getAttribute('data-phase'));
 
-    window.addEventListener("load", function(){
-      let phase = localStorage["openwpm-phase"] || PHASE_ON_PRODUCT_PAGE;
-      //let phase = browser.storage.local.get("phase") || PHASE_ON_PRODUCT_PAGE;
+    function runSegmentationAndMutationSummaryObserver(pageSegments){
+      // start segmenting 1s after page load
+      // segment all frames, regardless of product page etc.
+      setTimeout(() => {
+        console.log("Will check for dialogs");
+        pageSegments = segmentAndDismissDialog(pageSegments);
+        console.log("Will segment the page body");
+        pageSegments.push(segmentAndRecord(document.body));
+        observerSummary = new MutationSummary({
+          callback: function(summaries){handleSummary(summaries, pageSegments)},
+          queries: [{all: true}]})
+      }, TIME_BEFORE_SEGMENT);
+    }
 
-      console.log("Phase", phase, window.document.URL);
+    function clickAddToCart(){
+      let add2cart = getAddToCartButton();
+      if (!add2cart){
+        console.log("Cannot find any add to cart buttons, will quit");
+        return tellSeleniumToQuit();
+      }
+      try{
+        console.log("Will click add to cart, will update phase", PHASE_SEARCHING_VIEW_CART);
+        phase = PHASE_SEARCHING_VIEW_CART;
+        send('storePhase', PHASE_SEARCHING_VIEW_CART);
+        add2cart.click();
+        console.log("Clicked add to cart");
+        clickCartButton();
+      }catch(error){
+        console.error("Error while clicking add to cart, will quit");
+        tellSeleniumToQuit();
+      }
+    }
+
+    function clickCartButton(){
+      let cartButton = getCartButton();
+      if (!cartButton){
+        console.log("Cannot find any view cart buttons, will quit");
+        return tellSeleniumToQuit();
+      }
+      try{
+        console.log("Will click view cart button, will update phase", PHASE_SEARCHING_CHECKOUT);
+        phase = PHASE_SEARCHING_CHECKOUT;
+        send('storePhase', PHASE_SEARCHING_CHECKOUT);
+        cartButton.click();
+        console.log("Clicked view cart button");
+        clickCheckoutButton()
+      }catch(error){
+        console.error("Error while clicking view cart, will quit");
+        tellSeleniumToQuit();
+      }
+    }
+
+    function clickCheckoutButton(){
+      let checkoutButton = getCheckoutButton();
+      if (!checkoutButton){
+        console.log("Cannot find any checkout buttons, will quit");
+        return tellSeleniumToQuit();
+      }
+      try{
+        console.log("Will click checkout button, will update phase", PHASE_ON_CHECKOUT_PAGE);
+        phase = PHASE_ON_CHECKOUT_PAGE;
+        send('storePhase', PHASE_ON_CHECKOUT_PAGE);
+        checkoutButton.click();
+        console.log("Clicked checkout button");
+      }catch(error){
+        console.error("Error while clicking checkout, will quit");
+        tellSeleniumToQuit();
+      }
+    }
+
+    var phase;
+    window.addEventListener("load", function(){
+      let pageSegments = [];  // list of segments, functions in this closure access and update this list
+      phase = localStorage["openwpm-phase"] || PHASE_ON_PRODUCT_PAGE;
+      //let phase = browser.storage.local.get("phase") || PHASE_ON_PRODUCT_PAGE;
+      console.log("Phase after onload", phase, window.document.URL);
 
       // TODO keep track of phase
       if (phase == PHASE_ON_PRODUCT_PAGE){
         // product page, segment, interaction and click add to cart
-        handleProductPage();
-        // TODO: update phase after we click add to cart
-        if (!isInIframe()){
-          console.log("Will update phase");
-          send('storePhase', PHASE_SEARCHING_VIEW_CART);
-        }
         //localStorage["phase"] = PHASE_SEARCHING_VIEW_CART;
         //browser.storage.local.set({'phase': PHASE_SEARCHING_VIEW_CART});
         //send({'phase': })
+        runSegmentationAndMutationSummaryObserver(pageSegments);
+        if (!isInIframe())
+          interactWithProductPage(pageSegments);
       }else if (phase == PHASE_SEARCHING_VIEW_CART){
         // segment and try to click view to cart
-        if (!isInIframe()){
-          console.log("Will update phase");
-          send('storePhase', PHASE_SEARCHING_CHECKOUT);
-        }
+        runSegmentationAndMutationSummaryObserver(pageSegments);
+        if (!isInIframe())
+          clickCartButton();
       }else if (phase == PHASE_SEARCHING_CHECKOUT){
         // segment and try to click checkout
-        if (!isInIframe()){
-          console.log("Will update phase");
-          send('storePhase', PHASE_ON_CHECKOUT_PAGE);
-        }
+        runSegmentationAndMutationSummaryObserver(pageSegments);
+        if (!isInIframe())
+          clickCheckoutButton();
       }else if (phase == PHASE_ON_CHECKOUT_PAGE){
-        // on checkout, just segment
+        // on checkout, just segment and quit
+        runSegmentationAndMutationSummaryObserver(pageSegments);
+        setTimeout(() => {
+          tellSeleniumToQuit();
+        }, 10000);  // wait 10s before quitting
       }
     });
 
@@ -4541,4 +4706,5 @@ self.port.on("phase", function(phase){
   console.log("Updating phase in content js", phase, window.document.URL)
   localStorage["openwpm-phase"] = phase
 });
+
 self.port.emit("getPhase", "");

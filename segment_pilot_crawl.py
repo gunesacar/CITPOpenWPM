@@ -12,14 +12,14 @@ DATA_DIR = os.path.join(os.path.dirname(__file__), 'data')
 
 manager_params, browser_params = TaskManager.load_default_params(NUM_BROWSERS)
 
-date_prefix = '2019-01-15'  # Updated by deployment script
+date_prefix = '2019-01-16'  # Updated by deployment script
 prefix = date_prefix + '_segmentation_pilot'
 manager_params['database_name'] = prefix + '.sqlite'
 manager_params['data_directory'] = '~/' + prefix
 manager_params['log_directory'] = '~/' + prefix
-
-sites = []
+manager_params['testing'] = False
 # Read the site list
+sites = []
 for l in open("page-links-segment-pilot.csv"):
     sites.append(l.rstrip())
 
