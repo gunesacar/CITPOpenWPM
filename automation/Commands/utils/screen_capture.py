@@ -27,8 +27,9 @@ def capture_screenshots(visit_duration, **kwargs):
     manager_params = kwargs['manager_params']
     logger = loggingclient(*manager_params['logger_address'])
     screenshot_dir = manager_params['screenshot_path']
+    landing_url = driver.current_url
     screenshot_base_path = join(screenshot_dir, "%d_%s" % (
-        visit_id, urlparse(driver.current_url).hostname))
+        visit_id, urlparse(landing_url).hostname))
     last_image_crc = 0
     t_begin = time()
     for idx in xrange(0, visit_duration):
@@ -49,10 +50,10 @@ def capture_screenshots(visit_duration, **kwargs):
 
         if quit_selenium or driver.current_url == "about:blank":
             logger.info(
-                "Received quit signal from selenium on %s Visit ID: %d "
-                "phase: %s Quit reason: %s Quit signal: %s" %
+                "Received quit on %s Visit ID: %d "
+                "phase: %s reason: %s signal: %s landing_url: %s" %
                 (driver.current_url, visit_id, phase,
-                 quit_reason, quit_selenium))
+                 quit_reason, quit_selenium, landing_url))
             return
 
         try:

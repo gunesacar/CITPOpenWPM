@@ -4558,6 +4558,13 @@ function getPageScript() {
       }, TIME_BEFORE_SEGMENT);
     }
 
+    function updatePhase(newPhase){
+      phase = newPhase;
+      console.log("Will update phase to", newPhase);
+      localStorage['openwpm-phase'] = newPhase;
+      send('storePhase', newPhase);
+    }
+
     function clickAddToCart(){
       let add2cart = getAddToCartButton();
       if (!add2cart){
@@ -4565,9 +4572,8 @@ function getPageScript() {
         return tellSeleniumToQuit("No add to cart button");
       }
       try{
-        console.log("Will click add to cart, will update phase", PHASE_SEARCHING_VIEW_CART, add2cart);
-        phase = PHASE_SEARCHING_VIEW_CART;
-        send('storePhase', PHASE_SEARCHING_VIEW_CART);
+        console.log("Will click add to cart");
+        updatePhase(PHASE_SEARCHING_VIEW_CART);
         add2cart.click();
         console.log("Clicked add to cart");
         clickCartButton();
@@ -4584,9 +4590,8 @@ function getPageScript() {
         return tellSeleniumToQuit("No view cart button");
       }
       try{
-        console.log("Will click view cart button, will update phase", PHASE_SEARCHING_CHECKOUT);
-        phase = PHASE_SEARCHING_CHECKOUT;
-        send('storePhase', PHASE_SEARCHING_CHECKOUT);
+        console.log("Will click view cart button, will update phase");
+        updatePhase(PHASE_SEARCHING_CHECKOUT);
         cartButton.click();
         console.log("Clicked view cart button");
         clickCheckoutButton()
@@ -4603,9 +4608,8 @@ function getPageScript() {
         return tellSeleniumToQuit("No checkout button");
       }
       try{
-        console.log("Will click checkout button, will update phase", PHASE_ON_CHECKOUT_PAGE);
-        phase = PHASE_ON_CHECKOUT_PAGE;
-        send('storePhase', PHASE_ON_CHECKOUT_PAGE);
+        console.log("Will click checkout");
+        updatePhase(PHASE_ON_CHECKOUT_PAGE);
         checkoutButton.click();
         console.log("Clicked checkout button");
       }catch(error){
