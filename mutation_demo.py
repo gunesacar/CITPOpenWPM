@@ -6,7 +6,7 @@ from automation import CommandSequence, TaskManager
 
 # The list of sites that we wish to crawl
 NUM_BROWSERS = 1
-sites = ['https://www.lordandtaylor.com/jones-new-york-textured-plaid-coat/product/0500088736033']
+sites = ['https://www.azaleasf.com/']
 
 # Loads the manager preference and 3 copies of the default browser dictionaries
 manager_params, browser_params = TaskManager.load_default_params(NUM_BROWSERS)

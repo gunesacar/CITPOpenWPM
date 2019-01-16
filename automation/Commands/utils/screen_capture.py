@@ -6,6 +6,7 @@ from datetime import datetime
 from urlparse import urlparse
 import binascii
 import base64
+from selenium.common.exceptions import WebDriverException
 
 
 def save_screenshot_b64(out_png_path, image_b64, logger):
@@ -31,13 +32,27 @@ def capture_screenshots(visit_duration, **kwargs):
     last_image_crc = 0
     t_begin = time()
     for idx in xrange(0, visit_duration):
+        quit_selenium = False
+        phase = None
         t0 = time()
-        quit_selenium = driver.execute_script("return window.quit_selenium;")
-        phase = driver.execute_script("return localStorage['openwpm-phase'];")
-        if quit_selenium:
+        try:
+            quit_selenium = driver.execute_script(
+                "return localStorage['openwpm-quit-selenium'];")
+            quit_reason = driver.execute_script(
+                "return localStorage['openwpm-quit-reason'];")
+            phase = driver.execute_script(
+                "return localStorage['openwpm-phase'];")
+        except WebDriverException as exc:
+            logger.warning(
+                "Error while reading localStorage on %s Visit ID: %d %s"
+                % (driver.current_url, visit_id, exc))
+
+        if quit_selenium or driver.current_url == "about:blank":
             logger.info(
-                "Received quit signal from selenium on %s Visit ID: %d phase: %s" %
-                (driver.current_url, visit_id, phase))
+                "Received quit signal from selenium on %s Visit ID: %d "
+                "phase: %s Quit reason: %s Quit signal: %s" %
+                (driver.current_url, visit_id, phase,
+                 quit_reason, quit_selenium))
             return
 
         try:
@@ -45,7 +60,7 @@ def capture_screenshots(visit_duration, **kwargs):
         except Exception:
             logger.exception("Error while taking screenshot on %s Visit ID: %d"
                              % (driver.current_url, visit_id))
-            sleep(max([0, 1-(time() - t0)]))  # try to spend 1s on each iteration
+            sleep(max([0, 1-(time() - t0)]))  # try to spend 1s on each loop
             continue
         new_image_crc = binascii.crc32(img_b64)
         # check if the image has changed

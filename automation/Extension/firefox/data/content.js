@@ -3943,7 +3943,7 @@ function getPageScript() {
 
         // Normalize all features so min is 0 and max is 1
         Object.keys(fts).forEach((ft, _) => {
-          if (!fts[ft].values){
+          if (fts[ft].values.length){
             let m = min(fts[ft].values);
             let M = max(fts[ft].values);
             for (let i = 0; i < fts[ft].values.length; i++) {
@@ -4436,13 +4436,20 @@ function getPageScript() {
       return inViewport(node, boundingRect);
     }
 
-    async function tellSeleniumToQuit(){
+    //https://gist.github.com/eteeselink/81314282c95cd692ea1d
+    const openwpmSleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+    async function tellSeleniumToQuit(reason=""){
       // set a flag for selenium custom function to read and quit
-      window.quit_selenium = true;
-      await sleep(5000);  // wait for five seconds to let selenium see our signal
+      console.log("Will quit")
+      localStorage['openwpm-quit-selenium'] = true;
+      localStorage['openwpm-quit-reason'] = reason;
+      await openwpmSleep(3000);  // wait to let selenium see our signal
+      window.location = "about:blank"; // some third-party scripts (e.g. rollbar) cause our read from selenium to fail
+      // we redirect browser to about:blank to force quit
     }
-    //if (testing)
-      //tellSeleniumToQuit()
+    //if (testing
+    //  tellSeleniumToQuit("testing")
 
     function segmentAndDismissDialog(pageSegments){
       let popup = getPopupContainer();
@@ -4507,11 +4514,8 @@ function getPageScript() {
     const TIME_BEFORE_SEGMENT = 1000;
     const TIME_BEFORE_CLOSING_DIALOGS = 10000;
 
-    //https://gist.github.com/eteeselink/81314282c95cd692ea1d
-    const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
-
     async function interactWithProductPage(pageSegments){
-      await sleep(TIME_BEFORE_CLOSING_DIALOGS);
+      await openwpmSleep(TIME_BEFORE_CLOSING_DIALOGS);
       console.log("Will check for dialogs");
       pageSegments = segmentAndDismissDialog(pageSegments);
       if (isProductPage()){
@@ -4521,7 +4525,7 @@ function getPageScript() {
         clickAddToCart();
       }else{
         console.log("Not a product page, will skip. frame url/top url:", window.document.URL, window.top);
-        // TODO: flag exit to selenium 
+        tellSeleniumToQuit("Not a product page");
       }
     }
 
@@ -4558,10 +4562,10 @@ function getPageScript() {
       let add2cart = getAddToCartButton();
       if (!add2cart){
         console.log("Cannot find any add to cart buttons, will quit");
-        return tellSeleniumToQuit();
+        return tellSeleniumToQuit("No add to cart button");
       }
       try{
-        console.log("Will click add to cart, will update phase", PHASE_SEARCHING_VIEW_CART);
+        console.log("Will click add to cart, will update phase", PHASE_SEARCHING_VIEW_CART, add2cart);
         phase = PHASE_SEARCHING_VIEW_CART;
         send('storePhase', PHASE_SEARCHING_VIEW_CART);
         add2cart.click();
@@ -4569,7 +4573,7 @@ function getPageScript() {
         clickCartButton();
       }catch(error){
         console.error("Error while clicking add to cart, will quit");
-        tellSeleniumToQuit();
+        tellSeleniumToQuit("Error while clicking add to cart");
       }
     }
 
@@ -4577,7 +4581,7 @@ function getPageScript() {
       let cartButton = getCartButton();
       if (!cartButton){
         console.log("Cannot find any view cart buttons, will quit");
-        return tellSeleniumToQuit();
+        return tellSeleniumToQuit("No view cart button");
       }
       try{
         console.log("Will click view cart button, will update phase", PHASE_SEARCHING_CHECKOUT);
@@ -4588,7 +4592,7 @@ function getPageScript() {
         clickCheckoutButton()
       }catch(error){
         console.error("Error while clicking view cart, will quit");
-        tellSeleniumToQuit();
+        tellSeleniumToQuit("Error while clicking view cart");
       }
     }
 
@@ -4596,7 +4600,7 @@ function getPageScript() {
       let checkoutButton = getCheckoutButton();
       if (!checkoutButton){
         console.log("Cannot find any checkout buttons, will quit");
-        return tellSeleniumToQuit();
+        return tellSeleniumToQuit("No checkout button");
       }
       try{
         console.log("Will click checkout button, will update phase", PHASE_ON_CHECKOUT_PAGE);
@@ -4606,7 +4610,7 @@ function getPageScript() {
         console.log("Clicked checkout button");
       }catch(error){
         console.error("Error while clicking checkout, will quit");
-        tellSeleniumToQuit();
+        tellSeleniumToQuit("Error while clicking checkout");
       }
     }
 
@@ -4617,7 +4621,6 @@ function getPageScript() {
       //let phase = browser.storage.local.get("phase") || PHASE_ON_PRODUCT_PAGE;
       console.log("Phase after onload", phase, window.document.URL);
 
-      // TODO keep track of phase
       if (phase == PHASE_ON_PRODUCT_PAGE){
         // product page, segment, interaction and click add to cart
         //localStorage["phase"] = PHASE_SEARCHING_VIEW_CART;
@@ -4640,7 +4643,7 @@ function getPageScript() {
         // on checkout, just segment and quit
         runSegmentationAndMutationSummaryObserver(pageSegments);
         setTimeout(() => {
-          tellSeleniumToQuit();
+          tellSeleniumToQuit("Success");
         }, 10000);  // wait 10s before quitting
       }
     });
