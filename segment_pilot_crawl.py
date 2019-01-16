@@ -5,14 +5,22 @@ import os
 from automation.Commands.utils.screen_capture import capture_screenshots
 from urlparse import urlparse
 
+DEBUG = False
+
+
 # The list of sites that we wish to crawl
-NUM_BROWSERS = 7
+if DEBUG:
+    NUM_BROWSERS = 1
+else:
+    NUM_BROWSERS = 7
 NUM_BATCH = 5000
 DATA_DIR = os.path.join(os.path.dirname(__file__), 'data')
 
 manager_params, browser_params = TaskManager.load_default_params(NUM_BROWSERS)
-
 date_prefix = '2019-01-16'  # Updated by deployment script
+if DEBUG:
+    date_prefix = 'debug-' + date_prefix
+
 prefix = date_prefix + '_segmentation_pilot'
 manager_params['database_name'] = prefix + '.sqlite'
 manager_params['data_directory'] = '~/' + prefix
@@ -20,13 +28,20 @@ manager_params['log_directory'] = '~/' + prefix
 manager_params['testing'] = False
 # Read the site list
 sites = []
-for l in open("page-links-segment-pilot.csv"):
+
+# for l in open("page-links-segment-pilot.csv"):
+for l in open("500-product-links.csv"):
     sites.append(l.rstrip())
+
+if DEBUG:
+    sites = ['https://www.macys.com/shop/product/i.n.c.-fawne-riding-boots-created-for-macys?ID=4828742']
 
 TOTAL_NUM_SITES = len(sites)
 
 for i in xrange(NUM_BROWSERS):
     browser_params[i]['headless'] = True
+    if DEBUG:
+        browser_params[i]['headless'] = False
     browser_params[i]['js_instrument'] = True
     browser_params[i]['cookie_instrument'] = True
     browser_params[i]['http_instrument'] = True

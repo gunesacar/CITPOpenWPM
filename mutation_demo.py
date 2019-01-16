@@ -6,7 +6,7 @@ from automation import CommandSequence, TaskManager
 
 # The list of sites that we wish to crawl
 NUM_BROWSERS = 1
-sites = ['https://www.azaleasf.com/']
+sites = ['https://www.macys.com/shop/product/i.n.c.-fawne-riding-boots-created-for-macys?ID=4828742']
 
 # Loads the manager preference and 3 copies of the default browser dictionaries
 manager_params, browser_params = TaskManager.load_default_params(NUM_BROWSERS)
@@ -22,8 +22,8 @@ for i in range(NUM_BROWSERS):
 browser_params[0]['headless'] = False  # Launch only browser 0 headless
 
 # Update TaskManager configuration (use this for crawl-wide settings)
-manager_params['data_directory'] = '~/openwpm-mutation-t2/'
-manager_params['log_directory'] = '~/openwpm-mutation-t2/'
+manager_params['data_directory'] = '~/openwpm-mutation-t3/'
+manager_params['log_directory'] = '~/openwpm-mutation-t3/'
 manager_params['testing'] = True
 
 # Instantiates the measurement platform

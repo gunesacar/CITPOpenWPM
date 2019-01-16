@@ -4441,6 +4441,7 @@ function getPageScript() {
     async function tellSeleniumToQuit(reason=""){
       // set a flag for selenium custom function to read and quit
       console.log("Will quit. Phase:", phase, localStorage['openwpm-phase'])
+      return
       localStorage['openwpm-quit-selenium'] = true;
       localStorage['openwpm-quit-reason'] = reason;
       await openwpmSleep(3000);  // wait to let selenium see our signal
@@ -4566,6 +4567,8 @@ function getPageScript() {
     }
 
     const SLEEP_AFTER_PHASE_UPDATE = 3000;
+    const SLEEP_AFTER_CLICK = 3000;
+
     async function clickAddToCart(){
       let add2cart = getAddToCartButton();
       if (!add2cart){
@@ -4573,30 +4576,32 @@ function getPageScript() {
         return tellSeleniumToQuit("No add to cart button");
       }
       try{
-        console.log("Will click add to cart");
+        console.log("Will click add to cart", add2cart);
         updatePhase(PHASE_SEARCHING_VIEW_CART);
         await openwpmSleep(SLEEP_AFTER_PHASE_UPDATE);
         add2cart.click();
         console.log("Clicked add to cart");
-        clickCartButton();
+        await openwpmSleep(SLEEP_AFTER_CLICK);
+        clickViewCartButton();
       }catch(error){
         console.error("Error while clicking add to cart, will quit");
         tellSeleniumToQuit("Error while clicking add to cart");
       }
     }
 
-    async function clickCartButton(){
+    async function clickViewCartButton(){
       let cartButton = getCartButton();
       if (!cartButton){
         console.log("Cannot find any view cart buttons, will quit");
         return tellSeleniumToQuit("No view cart button");
       }
       try{
-        console.log("Will click view cart button, will update phase");
+        console.log("Will click view cart");
         updatePhase(PHASE_SEARCHING_CHECKOUT);
         await openwpmSleep(SLEEP_AFTER_PHASE_UPDATE);
         cartButton.click();
         console.log("Clicked view cart button");
+        await openwpmSleep(SLEEP_AFTER_CLICK);
         clickCheckoutButton()
       }catch(error){
         console.error("Error while clicking view cart, will quit");
@@ -4616,6 +4621,7 @@ function getPageScript() {
         await openwpmSleep(SLEEP_AFTER_PHASE_UPDATE);
         checkoutButton.click();
         console.log("Clicked checkout button");
+        await openwpmSleep(SLEEP_AFTER_CLICK);
         processCheckoutPageAndQuit()
       }catch(error){
         console.error("Error while clicking checkout, will quit");
@@ -4648,7 +4654,7 @@ function getPageScript() {
         interactWithProductPage(pageSegments);
       }else if (phase == PHASE_SEARCHING_VIEW_CART){
         // segment and try to click view to cart
-        clickCartButton();
+        clickViewCartButton();
       }else if (phase == PHASE_SEARCHING_CHECKOUT){
         // segment and try to click checkout
         clickCheckoutButton();

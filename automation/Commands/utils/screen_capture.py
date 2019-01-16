@@ -7,6 +7,7 @@ from urlparse import urlparse
 import binascii
 import base64
 from selenium.common.exceptions import WebDriverException
+from webdriver_extensions import click_to_element
 
 
 def save_screenshot_b64(out_png_path, image_b64, logger):
@@ -18,6 +19,38 @@ def save_screenshot_b64(out_png_path, image_b64, logger):
                          % (out_png_path))
         return False
     return True
+
+
+COMMON_JS = open('../common.js').read()
+
+
+def perform_interaction(button_type, driver, logger):
+    js = driver.execute_script
+    logger.info("Will click %s" % button_type)
+    if button_type == "ADD_TO_CART":
+        button = js(
+            COMMON_JS + ';' +
+            open('../extract_add_to_cart.js').read() +
+            ";return getAddToCartButton();")
+    elif button_type == "PRODUCT_INTERACTION":
+        button = js(
+            COMMON_JS + ';' +
+            open('../extract_add_to_cart.js').read() +
+            ";return getAddToCartButton();")
+    elif button_type == "VIEW_CART":
+        button = js(
+            COMMON_JS + ';' +
+            open('../extract_add_to_cart.js').read() +
+            ";return getAddToCartButton();")
+    elif button_type == "CHECKOUT":
+        button = js(
+            COMMON_JS + ';' +
+            open('../extract_add_to_cart.js').read() +
+            ";return getAddToCartButton();")
+
+    if button:
+        click_to_element(button)
+        logger.info("Clicked to add to cart")
 
 
 def capture_screenshots(visit_duration, **kwargs):
@@ -36,6 +69,7 @@ def capture_screenshots(visit_duration, **kwargs):
         quit_selenium = False
         phase = None
         t0 = time()
+        # perform_interaction("ADD_TO_CART", driver, logger)
         try:
             quit_selenium = driver.execute_script(
                 "return localStorage['openwpm-quit-selenium'];")
@@ -66,6 +100,7 @@ def capture_screenshots(visit_duration, **kwargs):
         new_image_crc = binascii.crc32(img_b64)
         # check if the image has changed
         if new_image_crc == last_image_crc:
+            sleep(max([0, 1-(time() - t0)]))  # try to spend 1s on each loop
             continue
         timestamp = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
         out_png_path = "%s_%s_%d" % (screenshot_base_path,
@@ -79,4 +114,12 @@ def capture_screenshots(visit_duration, **kwargs):
 
         sleep(max([0, 1-capture_duration]))
         if (time() - t_begin) > visit_duration:  # timeout
+            logger.info("Timeout in capture_screenshots on %s "
+                        "Visit ID: %d Loop: %d Phase: %s"
+                        % (driver.current_url, visit_id, idx, phase))
+
             break
+    else:
+        logger.info("Loop is over on %s "
+                    "Visit ID: %d Loop: %d Phase: %s"
+                    % (driver.current_url, visit_id, idx, phase))
