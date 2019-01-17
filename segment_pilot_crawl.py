@@ -25,16 +25,17 @@ prefix = date_prefix + '_segmentation_pilot'
 manager_params['database_name'] = prefix + '.sqlite'
 manager_params['data_directory'] = '~/' + prefix
 manager_params['log_directory'] = '~/' + prefix
-manager_params['testing'] = False
+manager_params['testing'] = DEBUG
 # Read the site list
 sites = []
 
-# for l in open("page-links-segment-pilot.csv"):
-for l in open("500-product-links.csv"):
-    sites.append(l.rstrip())
-
 if DEBUG:
-    sites = ['https://www.macys.com/shop/product/i.n.c.-fawne-riding-boots-created-for-macys?ID=4828742']
+    sites = ['https://www.jcpenney.com/p/xersion-tunic-top/ppr5007814157?pTmplType=regular',
+             #'https://www.aaghalalfoods.jp/product/green-chillies-200-g/'
+             ]
+else:
+    for l in open("500-product-links.csv"):
+        sites.append(l.rstrip())
 
 TOTAL_NUM_SITES = len(sites)
 
@@ -72,7 +73,8 @@ for i in range(start_index, end_index):
         url = sites[i]
         cs = CommandSequence.CommandSequence(
             url, reset=True)
-        TIME_ON_PAGE = 160  # product interaction = 125, initial wait 10
+        TIME_ON_PAGE = 240  # product interaction = 125, initial wait 10
+        # + time for click to addtocart,viewcart,checkout
         GET_TIMEOUT = TIME_ON_PAGE * 2  # must be longer than the TIME_ON_PAGE
         cs.get(sleep=1, timeout=GET_TIMEOUT)
         # cs.run_custom_function(close_dialogs, ())

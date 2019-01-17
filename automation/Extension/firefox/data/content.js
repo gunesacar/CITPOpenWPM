@@ -362,7 +362,7 @@ function getPageScript() {
 
     // For segmentation results
     function logSegment(nodeName, nodeId, innerText, style, boundingRect, timeStamp, outerHtml,
-        longestText, longestTextBoundingRect, longestTextStyle, numButtons, numImgs, numAnchors, phase) {
+        longestText, longestTextBoundingRect, longestTextStyle, numButtons, numImgs, numAnchors, openwpmPhase) {
       if(inLog)
         return;
       inLog = true;
@@ -389,7 +389,7 @@ function getPageScript() {
           numImgs: numImgs,
           numAnchors: numAnchors,
           mutationTimeStamp: timeStamp,
-          phase: phase
+          phase: openwpmPhase
         }
         send('logSegment', msg);
       }
@@ -3370,6 +3370,7 @@ function getPageScript() {
 
     /******************************************/
     /* extract_product_options.js - Start */
+    /*
     const excludedWords = ['instagram', 'youtube', 'twitter', 'facebook', 'login',
       'log in', 'signup', 'sign up', 'signin', 'sign in', 'pinterest', 'email',
       'share', 'account', 'add', 'review', 'submit', 'related',
@@ -3682,7 +3683,7 @@ function getPageScript() {
         getXPathTo(element));
     };
 
-    var playAttributes = function() {
+    var playAttributes = function(signalWhenFinished=true) {
       var te = getToggleAttributes();
       var se = getSelectAttributes();
 
@@ -3698,7 +3699,7 @@ function getPageScript() {
       }
 
       var combinations = elementCombinations(attributes);
-      var randomCombinations = getRandomSubarray(combinations, 5);
+      var randomCombinations = getRandomSubarray(combinations, 1);  // TODO change
       if (testing) // use one combination when testing to save time
         randomCombinations = getRandomSubarray(combinations, 1);
 
@@ -3768,18 +3769,19 @@ function getPageScript() {
           } catch (err1) {
             console.log(err1);
           }
+
         }, ind * (randomCombinations.length) * (waitTime + 2000));
       });
     };
 
     //playAttributes();
-
+    */
     /* extract_product_options.js - End */
     /******************************************/
 
     /******************************************/
     /* extract_add_to_cart.js - Start */
-
+    /*
     // Possible tags for add-to-cart buttons
     let possibleTags = ["button", "input", "a", "add-to-cart-button"];
 
@@ -4155,7 +4157,7 @@ function getPageScript() {
         }
         return candidates[0].elem;
     };
-
+    */
     /* extract_add_to_cart.js - End */
     /******************************************/
 
@@ -4392,12 +4394,12 @@ function getPageScript() {
                   ", numButtons:", numButtons,
                   ", numImgs:", numImgs,
                   ", numAnchors:", numAnchors,
-                  ", phase:", phase,
+                  ", phase:", localStorage['openwpm-phase'],
                     );
       // TODO: pass all the info that we want to store
       logSegment(node.nodeName, nodeId, innerText,
           style, boundingRect, timeStamp, outerHtml, longestText,
-          longestTextBoundingRect, longestTextStyle, numButtons, numImgs, numAnchors, phase);
+          longestTextBoundingRect, longestTextStyle, numButtons, numImgs, numAnchors, localStorage['openwpm-phase']);
     }
 
     function segmentAndRecord(element){
@@ -4495,7 +4497,7 @@ function getPageScript() {
               pageSegments = removeDuplicates(pageSegments);
             }
           }
-          console.log("Mutation summary segmentation took", (performance.now() - t0), pageSegments.length);
+          // console.log("Mutation summary segmentation took", (performance.now() - t0), pageSegments.length);
         }
       }
       if (charChangedNodes.length){
@@ -4518,15 +4520,17 @@ function getPageScript() {
       await openwpmSleep(TIME_BEFORE_CLOSING_DIALOGS);
       console.log("Will check for dialogs");
       pageSegments = segmentAndDismissDialog(pageSegments);
+      /*
       if (isProductPage()){
         console.log("Found a product page, will interact and click add to cart. frame url/top url:", window.document.URL, window.top);
-        playAttributes();
+        //playAttributes();
         console.log("Will click add to cart. frame url/top url:", window.document.URL, window.top);
         clickAddToCart();
       }else{
         console.log("Not a product page, will skip. frame url/top url:", window.document.URL, window.top);
         tellSeleniumToQuit("Not a product page");
       }
+      */
     }
 
     // https://stackoverflow.com/a/326076
@@ -4640,6 +4644,7 @@ function getPageScript() {
     window.addEventListener("load", function(){
       let pageSegments = [];  // list of segments, functions in this closure access and update this list
       phase = localStorage["openwpm-phase"] || PHASE_ON_PRODUCT_PAGE;
+      localStorage["openwpm-phase"] = phase;
       if (!isInIframe()){
         updatePhase(phase, updateBgScript=false);
         //let phase = browser.storage.local.get("phase") || PHASE_ON_PRODUCT_PAGE;
@@ -4652,7 +4657,9 @@ function getPageScript() {
         return;
       if (phase == PHASE_ON_PRODUCT_PAGE){
         interactWithProductPage(pageSegments);
-      }else if (phase == PHASE_SEARCHING_VIEW_CART){
+      }
+      /*
+      else if (phase == PHASE_SEARCHING_VIEW_CART){
         // segment and try to click view to cart
         clickViewCartButton();
       }else if (phase == PHASE_SEARCHING_CHECKOUT){
@@ -4662,6 +4669,7 @@ function getPageScript() {
         // on checkout, just segment and quit
         processCheckoutPageAndQuit()
       }
+      */
     });
 
     /* Segments processing - End */
@@ -4721,6 +4729,8 @@ insertScript(getPageScript(), {
   testing: self.options.testing
 });
 
+/*
+
 self.port.on("phase", function(phase){
   console.log("Updating phase in content js", phase, window.document.URL)
   localStorage["openwpm-phase"] = phase
@@ -4739,3 +4749,4 @@ function isInIframe() {
 // we only care about stage in the main document
 if (!isInIframe())
   self.port.emit("getPhase", "");
+*/
