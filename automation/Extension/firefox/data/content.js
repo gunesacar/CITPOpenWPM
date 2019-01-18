@@ -2323,6 +2323,27 @@ function getPageScript() {
       return rect.height * rect.width;
     };
 
+    var getClientRect = function(element) {
+      if (element.tagName.toLowerCase() === 'html') {
+        var w = Math.max(document.documentElement.clientWidth, window.innerWidth || 0);
+        var h = Math.max(document.documentElement.clientHeight, window.innerHeight || 0);
+
+        return {
+          top: 0,
+          left: 0,
+          bottom: h,
+          right: w,
+          width: w,
+          height: h,
+          x: 0,
+          y: 0
+        };
+      }
+      else {
+        return element.getBoundingClientRect();
+      }
+    };
+
     var getBackgroundColor = function(element) {
       var style = window.getComputedStyle(element);
       var tagName = element.tagName.toLowerCase();
@@ -2422,9 +2443,15 @@ function getPageScript() {
           style = window.getComputedStyle(element);
         }
 
-        var rect = element.getBoundingClientRect();
+        var tagName = element.tagName.toLowerCase();
+        var rect = getClientRect(element);
         if (rect.height > 0 && rect.width > 0) {
           return true;
+        }
+
+        if (tagName == 'path' && (rect.height > 0 || rect.width > 0)) {
+          var strokeWidth = element.strokeWidth;
+          return !!strokeWidth && (parseInt(strokeWidth, 10) > 0);
         }
 
         return style.overflow !== 'hidden' && Array.from(element.childNodes).some(
@@ -2435,7 +2462,7 @@ function getPageScript() {
       };
 
       var getOverflowState = function(element) {
-        var region = element.getBoundingClientRect();
+        var region = getClientRect(element);
         var htmlElem = document.documentElement;
         var bodyElem = document.body;
         var htmlOverflowStyle = window.getComputedStyle(htmlElem).overflow;
@@ -2525,7 +2552,7 @@ function getPageScript() {
             continue;
           }
 
-          var containerRect = container.getBoundingClientRect();
+          var containerRect = getClientRect(container);
 
           if (containerRect.width == 0 || containerRect.height == 0) {
             return 'hidden';
@@ -3194,7 +3221,6 @@ function getPageScript() {
 
       return matrix.clusters();
     };
-
     /* Common JS - End */
     /******************************************/
 

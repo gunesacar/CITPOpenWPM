@@ -34,13 +34,13 @@ SLEEP_AFTER_CLICK = 3
 SLEEP_AFTER_CHECKOUT_CLICK = 10
 SLEEP_UNTIL_DIALOG_DISMISSAL = 15
 
-MAX_PROD_ATTR_INTERACTION = 125
+MAX_PROD_ATTR_INTERACTION = 125 + 10
 
 
 class ShopBot(object):
 
     def __init__(self, driver, visit_id, manager_params,
-                 logger):
+                 logger, landing_page):
         self.visit_id = visit_id
         self.driver = driver
         self.js = self.driver.execute_script
@@ -50,6 +50,7 @@ class ShopBot(object):
         self.is_play_attr_started = False
         self.time_play_attr_started = 0
         self.update_phase(PHASE_ON_PRODUCT_PAGE)
+        self.landing_page = landing_page
 
     def is_play_attr_finished(self):
         timeout = (
@@ -67,8 +68,8 @@ class ShopBot(object):
                 self.is_play_attr_started = True
             elif self.is_play_attr_finished():
                 self.logger.info(
-                    "Product attribute interaction finished in %ds Visit Id: %d" %
-                    (int(time() - self.time_play_attr_started), self.visit_id))
+                    "Product attribute interaction finished in %ds on %s Visit Id: %d" %
+                    (int(time() - self.time_play_attr_started), self.landing_page, self.visit_id))
                 self.click_add_to_cart()
             else:  # Waiting for the product attribute to finish
                 pass
@@ -162,7 +163,8 @@ def capture_screenshots(visit_duration, **kwargs):
     visit_id = kwargs['visit_id']
     manager_params = kwargs['manager_params']
     logger = loggingclient(*manager_params['logger_address'])
-    shop_bot = ShopBot(driver, visit_id, manager_params, logger)
+    landing_url = driver.current_url
+    shop_bot = ShopBot(driver, visit_id, manager_params, logger, landing_url)
 
     if not shop_bot.can_execute_js():
         logger.warning(
@@ -176,7 +178,6 @@ def capture_screenshots(visit_duration, **kwargs):
             % (driver.current_url, visit_id))
         return False
     screenshot_dir = manager_params['screenshot_path']
-    landing_url = driver.current_url
     screenshot_base_path = join(screenshot_dir, "%d_%s" % (
         visit_id, urlparse(landing_url).hostname))
     last_image_crc = 0
