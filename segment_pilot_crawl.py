@@ -31,7 +31,7 @@ NUM_BATCH = 5000
 DATA_DIR = os.path.join(os.path.dirname(__file__), 'data')
 
 manager_params, browser_params = TaskManager.load_default_params(NUM_BROWSERS)
-date_prefix = '2019-01-18'  # Updated by deployment script
+date_prefix = '2019-01-19'  # Updated by deployment script
 if DEBUG:
     date_prefix = 'debug-' + date_prefix
 

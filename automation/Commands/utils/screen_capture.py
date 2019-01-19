@@ -8,6 +8,7 @@ import binascii
 import base64
 from selenium.common.exceptions import WebDriverException
 from webdriver_extensions import click_to_element
+from ...utilities.domain_utils import get_ps_plus_1
 
 
 def save_screenshot_b64(out_png_path, image_b64, logger):
@@ -146,6 +147,8 @@ class ShopBot(object):
         self.logger.info("Clicked to checkout Visit Id: %d" % self.visit_id)
         sleep(SLEEP_AFTER_CLICK)
         self.update_phase(PHASE_ON_CHECKOUT_PAGE)
+        # quit after 10s
+        self.time_to_quit = time() + SLEEP_AFTER_CHECKOUT_CLICK
 
     def interact_with_product_attrs(self):
         self.logger.info("Will start interaction Visit Id: %d" % self.visit_id)
@@ -153,8 +156,9 @@ class ShopBot(object):
                 ";return playAttributes();")
 
     def process_checkout(self):
-        sleep(SLEEP_AFTER_CHECKOUT_CLICK)
-        self.reason_to_quit = "Success"
+        """We stay on the checkout page for 10s, quit after 10s."""
+        if self.time_to_quit > time():
+            self.reason_to_quit = "Success"
 
 
 def capture_screenshots(visit_duration, **kwargs):
@@ -164,6 +168,7 @@ def capture_screenshots(visit_duration, **kwargs):
     manager_params = kwargs['manager_params']
     logger = loggingclient(*manager_params['logger_address'])
     landing_url = driver.current_url
+    landing_ps1 = get_ps_plus_1(landing_url)
     shop_bot = ShopBot(driver, visit_id, manager_params, logger, landing_url)
 
     if not shop_bot.can_execute_js():
@@ -184,37 +189,24 @@ def capture_screenshots(visit_duration, **kwargs):
     t_begin = time()
     for idx in xrange(0, visit_duration):
         t0 = time()
+        current_ps1 = get_ps_plus_1(driver.current_url)
+        if current_ps1 != landing_ps1:
+            logger.error(
+                "Will quit on %s Visit Id: %d "
+                "Phase: %s Reason: %s landing_url: %s" %
+                (driver.current_url, visit_id, shop_bot.phase,
+                 "off-domain navigation", landing_url))
+            return
+
         shop_bot.act(t0-t_begin)
         if shop_bot.reason_to_quit:
             logger.info(
-                "Received quit on %s Visit Id: %d "
+                "Will quit on %s Visit Id: %d "
                 "Phase: %s Reason: %s landing_url: %s" %
                 (driver.current_url, visit_id, shop_bot.phase,
                  shop_bot.reason_to_quit, landing_url))
             return
 
-        # perform_interaction("ADD_TO_CART", driver, logger)
-        """
-        try:
-            quit_selenium = driver.execute_script(
-                "return localStorage['openwpm-quit-selenium'];")
-            quit_reason = driver.execute_script(
-                "return localStorage['openwpm-quit-reason'];")
-            phase = driver.execute_script(
-                "return localStorage['openwpm-phase'];")
-        except WebDriverException as exc:
-            logger.warning(
-                "Error while reading localStorage on %s Visit Id: %d %s"
-                % (driver.current_url, visit_id, exc))
-
-        if quit_selenium or driver.current_url == "about:blank":
-            logger.info(
-                "Received quit on %s Visit Id: %d "
-                "phase: %s reason: %s signal: %s landing_url: %s" %
-                (driver.current_url, visit_id, phase,
-                 quit_reason, quit_selenium, landing_url))
-            return
-        """
         try:
             img_b64 = driver.get_screenshot_as_base64()
         except Exception:
@@ -227,9 +219,9 @@ def capture_screenshots(visit_duration, **kwargs):
         if new_image_crc == last_image_crc:
             sleep(max([0, 1-(time() - t0)]))  # try to spend 1s on each loop
             continue
-        timestamp = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
-        out_png_path = "%s_%s_%d" % (screenshot_base_path,
-                                     timestamp, idx)
+        timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
+        out_png_path = "%s_%d_%s_%d.png" % (
+            screenshot_base_path, shop_bot.phase, timestamp, idx)
         save_screenshot_b64(out_png_path, img_b64, logger)
         last_image_crc = new_image_crc
         loop_duration = time() - t0
