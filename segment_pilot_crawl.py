@@ -96,7 +96,7 @@ for i in range(start_index, end_index):
         url = sites[i]
         cs = CommandSequence.CommandSequence(
             url, reset=True)
-        TIME_ON_PAGE = 240  # product interaction = 125, initial wait 10
+        TIME_ON_PAGE = 300  # product interaction = 125, initial wait 10
         # + time for click to addtocart,viewcart,checkout
         GET_TIMEOUT = TIME_ON_PAGE * 2  # must be longer than the TIME_ON_PAGE
         cs.get(sleep=1, timeout=GET_TIMEOUT)

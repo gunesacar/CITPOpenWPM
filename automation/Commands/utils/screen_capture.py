@@ -31,13 +31,14 @@ PHASE_SEARCHING_VIEW_CART = 1
 PHASE_SEARCHING_CHECKOUT = 2
 PHASE_ON_CHECKOUT_PAGE = 3
 
-SLEEP_AFTER_CLICK = 3
-SLEEP_AFTER_CHECKOUT_CLICK = 10
+SLEEP_AFTER_CLICK = 5
+SLEEP_AFTER_CHECKOUT_CLICK = 30
 SLEEP_UNTIL_DIALOG_DISMISSAL = 15
 
 MAX_PROD_ATTR_INTERACTION = 125 + 10
 
-MAX_CART_CHECKOUT_RETRIES = 6
+MAX_CART_CHECKOUT_RETRIES = 5
+
 
 class ShopBot(object):
 
@@ -135,12 +136,14 @@ class ShopBot(object):
 
         if not button:
             if not self.has_max_cart_checkouts_exhausted():
-                self.logger.warning("Cannot find view cart button, will try to "
-                                    "click checkout Visit Id: %d" % self.visit_id)
+                self.logger.warning(
+                    "Cannot find view cart, will try to "
+                    "click checkout (retry %d) Visit Id: %d" % (
+                        self.cart_checkout_retries, self.visit_id))
                 self.cart_checkout_retries += 1
                 return self.click_checkout()
             else:
-                self.reason_to_quit = "No cart button"
+                self.reason_to_quit = "No view cart button"
                 return
             # self.reason_to_quit = "No view cart button"
 
@@ -156,8 +159,10 @@ class ShopBot(object):
 
         if not button:
             if not self.has_max_cart_checkouts_exhausted():
-                self.logger.warning("Cannot find view checkout button, will try to "
-                                    "click cart Visit Id: %d" % self.visit_id)
+                self.logger.warning(
+                    "Cannot find view checkout button, will try to "
+                    "click cart (retry %d) Visit Id: %d" % (
+                        self.cart_checkout_retries, self.visit_id))
                 self.cart_checkout_retries += 1
                 return self.click_view_cart()
             else:
@@ -183,7 +188,7 @@ class ShopBot(object):
             self.reason_to_quit = "Success"
 
     def has_max_cart_checkouts_exhausted(self):
-        return False if self.cart_checkout_retries < MAX_CART_CHECKOUT_RETRIES else True
+        return self.cart_checkout_retries > MAX_CART_CHECKOUT_RETRIES
 
 
 def capture_screenshots(visit_duration, **kwargs):
@@ -227,9 +232,10 @@ def capture_screenshots(visit_duration, **kwargs):
         if shop_bot.reason_to_quit:
             logger.info(
                 "Will quit on %s Visit Id: %d "
-                "Phase: %s Reason: %s landing_url: %s" %
-                (driver.current_url, visit_id, shop_bot.phase,
-                 shop_bot.reason_to_quit, landing_url))
+                "Phase: %s Reason: %s cart_checkout_retries %d landing_url: %s"
+                % (driver.current_url, visit_id, shop_bot.phase,
+                   shop_bot.reason_to_quit,
+                   shop_bot.cart_checkout_retries, landing_url))
             return
 
         try:
