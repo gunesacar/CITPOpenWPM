@@ -37,6 +37,7 @@ SLEEP_UNTIL_DIALOG_DISMISSAL = 15
 
 MAX_PROD_ATTR_INTERACTION = 125 + 10
 
+MAX_CART_CHECKOUT_RETRIES = 6
 
 class ShopBot(object):
 
@@ -52,6 +53,7 @@ class ShopBot(object):
         self.time_play_attr_started = 0
         self.update_phase(PHASE_ON_PRODUCT_PAGE)
         self.landing_page = landing_page
+        self.cart_checkout_retries = 0
 
     def is_play_attr_finished(self):
         timeout = (
@@ -71,6 +73,7 @@ class ShopBot(object):
                 self.logger.info(
                     "Product attribute interaction finished in %ds on %s Visit Id: %d" %
                     (int(time() - self.time_play_attr_started), self.landing_page, self.visit_id))
+                sleep(SLEEP_AFTER_CLICK)
                 self.click_add_to_cart()
             else:  # Waiting for the product attribute to finish
                 pass
@@ -118,6 +121,8 @@ class ShopBot(object):
         if not button:
             self.reason_to_quit = "No add to cart button"
             return
+
+        self.logger.info("Add to cart button: %s" % button.get_attribute('outerHTML'))
         click_to_element(button)
         # move_to_and_click(self.driver, button)
         self.logger.info("Clicked to add to cart Visit Id: %d" % self.visit_id)
@@ -127,11 +132,19 @@ class ShopBot(object):
     def click_view_cart(self):
         button = self.js(COMMON_JS + ';' + EXTRACT_ADD_TO_CART +
                          ";return getCartButton();")
+
         if not button:
-            self.logger.warning("Cannot find view cart button, will try to "
-                                "click checkout Visit Id: %d" % self.visit_id)
-            return self.click_checkout()
+            if not self.has_max_cart_checkouts_exhausted():
+                self.logger.warning("Cannot find view cart button, will try to "
+                                    "click checkout Visit Id: %d" % self.visit_id)
+                self.cart_checkout_retries += 1
+                return self.click_checkout()
+            else:
+                self.reason_to_quit = "No cart button"
+                return
             # self.reason_to_quit = "No view cart button"
+
+        self.logger.info("View cart button: %s" % button.get_attribute('outerHTML'))
         click_to_element(button)
         self.logger.info("Clicked to view cart Visit Id: %d" % self.visit_id)
         sleep(SLEEP_AFTER_CLICK)
@@ -140,9 +153,18 @@ class ShopBot(object):
     def click_checkout(self):
         button = self.js(COMMON_JS + ';' + EXTRACT_ADD_TO_CART +
                          ";return getCheckoutButton();")
+
         if not button:
-            self.reason_to_quit = "No checkout button"
-            return
+            if not self.has_max_cart_checkouts_exhausted():
+                self.logger.warning("Cannot find view checkout button, will try to "
+                                    "click cart Visit Id: %d" % self.visit_id)
+                self.cart_checkout_retries += 1
+                return self.click_view_cart()
+            else:
+                self.reason_to_quit = "No checkout button"
+                return
+
+        self.logger.info("Checkout button: %s" % button.get_attribute('outerHTML'))
         click_to_element(button)
         self.logger.info("Clicked to checkout Visit Id: %d" % self.visit_id)
         sleep(SLEEP_AFTER_CLICK)
@@ -159,6 +181,9 @@ class ShopBot(object):
         """We stay on the checkout page for 10s, quit after 10s."""
         if self.time_to_quit > time():
             self.reason_to_quit = "Success"
+
+    def has_max_cart_checkouts_exhausted(self):
+        return False if self.cart_checkout_retries < MAX_CART_CHECKOUT_RETRIES else True
 
 
 def capture_screenshots(visit_duration, **kwargs):
