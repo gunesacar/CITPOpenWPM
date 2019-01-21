@@ -123,7 +123,7 @@ class ShopBot(object):
             self.reason_to_quit = "No add to cart button"
             return
 
-        self.logger.info("Add to cart button: %s" % button.get_attribute('outerHTML'))
+        self.logger.info("Add to cart button: %s Visit Id: %d" % (button.get_attribute('outerHTML'), self.visit_id))
         click_to_element(button)
         # move_to_and_click(self.driver, button)
         self.logger.info("Clicked to add to cart Visit Id: %d" % self.visit_id)
@@ -147,7 +147,7 @@ class ShopBot(object):
                 return
             # self.reason_to_quit = "No view cart button"
 
-        self.logger.info("View cart button: %s" % button.get_attribute('outerHTML'))
+        self.logger.info("View cart button: %s Visit Id: %d" % (button.get_attribute('outerHTML'), self.visit_id))
         click_to_element(button)
         self.logger.info("Clicked to view cart Visit Id: %d" % self.visit_id)
         sleep(SLEEP_AFTER_CLICK)
@@ -169,7 +169,7 @@ class ShopBot(object):
                 self.reason_to_quit = "No checkout button"
                 return
 
-        self.logger.info("Checkout button: %s" % button.get_attribute('outerHTML'))
+        self.logger.info("Checkout button: %s Visit Id: %d" % (button.get_attribute('outerHTML'), self.visit_id))
         click_to_element(button)
         self.logger.info("Clicked to checkout Visit Id: %d" % self.visit_id)
         sleep(SLEEP_AFTER_CLICK)
