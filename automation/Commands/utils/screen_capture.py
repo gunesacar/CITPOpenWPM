@@ -38,7 +38,7 @@ SLEEP_UNTIL_DIALOG_DISMISSAL = 15
 
 MAX_PROD_ATTR_INTERACTION = 125 + 10
 
-MAX_CART_CHECKOUT_RETRIES = 5
+MAX_CART_CHECKOUT_RETRIES = 3
 
 
 class ShopBot(object):
@@ -161,10 +161,13 @@ class ShopBot(object):
         self.time_to_quit = time() + SLEEP_AFTER_CHECKOUT_CLICK
 
     def interact_with_product_attrs(self):
+        LIMIT_PRODUCT_COMBINATIONS = 1  # only use one combination to make it faster
         self.logger.info("Will start product interaction Visit Id: %d" % self.visit_id)
         random_combinations = self.js(COMMON_JS + ';' + EXTRACT_PRODUCT_OPTIONS +
                 ";return playAttributes();")
 
+        if LIMIT_PRODUCT_COMBINATIONS:  # !!!
+            random_combinations = random_combinations[:LIMIT_PRODUCT_COMBINATIONS]
         self.logger.info("Product interaction len(random_combinations) %d Visit Id: %d" % (len(random_combinations), self.visit_id))
         self.logger.info("Product interaction random_combinations %s Visit Id: %d" % (str(random_combinations), self.visit_id))
 
@@ -190,8 +193,8 @@ class ShopBot(object):
 
                         sleep(SLEEP_AFTER_CLICK)
                     except:
-                        logger.exception("Error while interacting with product attributes on %s Visit Id: %d"
-                                         % (driver.current_url, visit_id))
+                        self.logger.exception("Error while interacting with product attributes on %s Visit Id: %d"
+                                         % (self.driver.current_url, self.visit_id))
 
         self.logger.info("Will end product interaction Visit Id: %d" % self.visit_id)
 
@@ -228,7 +231,7 @@ def capture_screenshots(visit_duration, **kwargs):
 
     if not shop_bot.is_product_page():
         logger.warning(
-            "Not a product page, will quit on %s Visit Id: %d"
+            "Will quit. Reason: not a product page on %s Visit Id: %d"
             % (driver.current_url, visit_id))
         return False
     screenshot_dir = manager_params['screenshot_path']
@@ -291,6 +294,7 @@ def capture_screenshots(visit_duration, **kwargs):
         logger.info("Loop is over on %s "
                     "Visit Id: %d Loop: %d Phase: %s"
                     % (driver.current_url, visit_id, idx, shop_bot.phase))
+
 
 def click_handler(element):
     if element is not None:
