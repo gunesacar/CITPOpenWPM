@@ -25,6 +25,7 @@ def save_screenshot_b64(out_png_path, image_b64, logger):
 COMMON_JS = open('../common.js').read()
 EXTRACT_ADD_TO_CART = open('../extract_add_to_cart.js').read()
 EXTRACT_PRODUCT_OPTIONS = open('../extract_product_options.js').read()
+DISMISS_DIALOGS = open('../dismiss_dialogs.js').read()
 
 PHASE_ON_PRODUCT_PAGE = 0
 PHASE_SEARCHING_VIEW_CART = 1
@@ -50,37 +51,19 @@ class ShopBot(object):
         self.manager_params = manager_params
         self.logger = logger
         self.reason_to_quit = ""
-        self.is_play_attr_started = False
-        self.time_play_attr_started = 0
         self.update_phase(PHASE_ON_PRODUCT_PAGE)
         self.landing_page = landing_page
         self.cart_checkout_retries = 0
-
-    def is_play_attr_finished(self):
-        timeout = (
-            time() - self.time_play_attr_started) > MAX_PROD_ATTR_INTERACTION
-        return timeout or self.js(
-                "return localStorage['openwpm-playAttributesDone'];")
 
     def act(self, seconds_since_load):
         if seconds_since_load < SLEEP_UNTIL_DIALOG_DISMISSAL:
             return
         if self.phase == PHASE_ON_PRODUCT_PAGE:
-            if not self.is_play_attr_started:
-                self.time_play_attr_started = time()
-                self.interact_with_product_attrs()
-                self.is_play_attr_started = True
-            elif self.is_play_attr_finished():
-                self.logger.info(
-                    "Product attribute interaction finished in %ds on %s Visit Id: %d" %
-                    (int(time() - self.time_play_attr_started), self.landing_page, self.visit_id))
-                sleep(SLEEP_AFTER_CLICK)
-                self.click_add_to_cart()
-            else:  # Waiting for the product attribute to finish
-                pass
-                # self.logger.info(
-                #    "Waiting for the product attribute "
-                #    "interaction to finish Visit Id: %d" % self.visit_id)
+            self.interact_with_product_attrs()
+            sleep(SLEEP_AFTER_CLICK)
+            self.dismiss_dialog()
+            sleep(SLEEP_AFTER_CLICK)
+            self.click_add_to_cart()
         elif self.phase == PHASE_SEARCHING_VIEW_CART:
             self.click_view_cart()
         elif self.phase == PHASE_SEARCHING_CHECKOUT:
@@ -178,9 +161,41 @@ class ShopBot(object):
         self.time_to_quit = time() + SLEEP_AFTER_CHECKOUT_CLICK
 
     def interact_with_product_attrs(self):
-        self.logger.info("Will start interaction Visit Id: %d" % self.visit_id)
-        self.js(COMMON_JS + ';' + EXTRACT_PRODUCT_OPTIONS +
+        self.logger.info("Will start product interaction Visit Id: %d" % self.visit_id)
+        random_combinations = self.js(COMMON_JS + ';' + EXTRACT_PRODUCT_OPTIONS +
                 ";return playAttributes();")
+
+        self.logger.info("Product interaction len(random_combinations) %d Visit Id: %d" % (len(random_combinations), self.visit_id))
+        self.logger.info("Product interaction random_combinations %s Visit Id: %d" % (str(random_combinations), self.visit_id))
+
+        if len(random_combinations) == 0:
+            return
+        else:
+            for rc in random_combinations:
+                for el in rc:
+                    try:
+                        if isinstance(el, list):
+                            select_el = self.driver.find_elements_by_xpath(el[0])
+                            option_el = self.driver.find_elements_by_xpath(el[1])
+
+                            if select_el[0].tag_name.lower() == 'select':
+                                click_handler(option_el[0])
+                            else:
+                                click_handler(select_el[0])
+                                click_handler(option_el[0])
+                        else:
+                            element = self.driver.find_elements_by_xpath(el)
+                            if element[0]:
+                                click_handler(element[0])
+
+                        sleep(SLEEP_AFTER_CLICK)
+                    except:
+                        logger.exception("Error while interacting with product attributes on %s Visit Id: %d"
+                                         % (driver.current_url, visit_id))
+
+        self.logger.info("Will end product interaction Visit Id: %d" % self.visit_id)
+
+        return
 
     def process_checkout(self):
         """We stay on the checkout page for 10s, quit after 10s."""
@@ -189,6 +204,10 @@ class ShopBot(object):
 
     def has_max_cart_checkouts_exhausted(self):
         return self.cart_checkout_retries > MAX_CART_CHECKOUT_RETRIES
+
+    def dismiss_dialog(self):
+        self.js(COMMON_JS + ';' + DISMISS_DIALOGS +
+                         ";return dismissDialog();")
 
 
 def capture_screenshots(visit_duration, **kwargs):
@@ -272,3 +291,23 @@ def capture_screenshots(visit_duration, **kwargs):
         logger.info("Loop is over on %s "
                     "Visit Id: %d Loop: %d Phase: %s"
                     % (driver.current_url, visit_id, idx, shop_bot.phase))
+
+def click_handler(element):
+    if element is not None:
+        ase = element.find_elements_by_tag_name('a')
+        if ase and len(ase) != 0:
+            click_to_element(ase[0])
+            return
+
+        buttons = element.find_elements_by_tag_name('button')
+        if buttons and len(buttons) != 0:
+            click_to_element(buttons[0])
+            return
+
+        children = element.find_elements_by_xpath("*")
+        if len(children) > 0:
+            click_to_element(children[0])
+        else:
+            click_to_element(element)
+
+        return
