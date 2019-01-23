@@ -40,6 +40,9 @@ MAX_PROD_ATTR_INTERACTION = 125 + 10
 
 MAX_CART_CHECKOUT_RETRIES = 3
 
+# if positive, will limit the number of combinations to make it faster
+LIMIT_PRODUCT_COMBOS = 0
+
 
 class ShopBot(object):
 
@@ -106,7 +109,8 @@ class ShopBot(object):
             self.reason_to_quit = "No add to cart button"
             return
 
-        self.logger.info("Add to cart button: %s Visit Id: %d" % (button.get_attribute('outerHTML'), self.visit_id))
+        self.logger.info("Add to cart button: %s Visit Id: %d" %
+                         (button.get_attribute('outerHTML'), self.visit_id))
         click_to_element(button)
         # move_to_and_click(self.driver, button)
         self.logger.info("Clicked to add to cart Visit Id: %d" % self.visit_id)
@@ -130,7 +134,8 @@ class ShopBot(object):
                 return
             # self.reason_to_quit = "No view cart button"
 
-        self.logger.info("View cart button: %s Visit Id: %d" % (button.get_attribute('outerHTML'), self.visit_id))
+        self.logger.info("View cart button: %s Visit Id: %d" %
+                         (button.get_attribute('outerHTML'), self.visit_id))
         click_to_element(button)
         self.logger.info("Clicked to view cart Visit Id: %d" % self.visit_id)
         sleep(SLEEP_AFTER_CLICK)
@@ -152,7 +157,8 @@ class ShopBot(object):
                 self.reason_to_quit = "No checkout button"
                 return
 
-        self.logger.info("Checkout button: %s Visit Id: %d" % (button.get_attribute('outerHTML'), self.visit_id))
+        self.logger.info("Checkout button: %s Visit Id: %d" %
+                         (button.get_attribute('outerHTML'), self.visit_id))
         click_to_element(button)
         self.logger.info("Clicked to checkout Visit Id: %d" % self.visit_id)
         sleep(SLEEP_AFTER_CLICK)
@@ -161,15 +167,23 @@ class ShopBot(object):
         self.time_to_quit = time() + SLEEP_AFTER_CHECKOUT_CLICK
 
     def interact_with_product_attrs(self):
-        LIMIT_PRODUCT_COMBINATIONS = 1  # only use one combination to make it faster
-        self.logger.info("Will start product interaction Visit Id: %d" % self.visit_id)
-        random_combinations = self.js(COMMON_JS + ';' + EXTRACT_PRODUCT_OPTIONS +
-                ";return playAttributes();")
+        driver = self.driver
+        find_elements_by_xpath = driver.find_elements_by_xpath
+        logger = self.logger
+        logger.info(
+            "Will start product interaction Visit Id: %d" % self.visit_id)
+        random_combinations = self.js(
+            COMMON_JS + ';' + EXTRACT_PRODUCT_OPTIONS +
+            ";return playAttributes();")
 
-        if LIMIT_PRODUCT_COMBINATIONS:  # !!!
-            random_combinations = random_combinations[:LIMIT_PRODUCT_COMBINATIONS]
-        self.logger.info("Product interaction len(random_combinations) %d Visit Id: %d" % (len(random_combinations), self.visit_id))
-        self.logger.info("Product interaction random_combinations %s Visit Id: %d" % (str(random_combinations), self.visit_id))
+        if LIMIT_PRODUCT_COMBOS:  # don't subsample if 0 !!!
+            random_combinations = random_combinations[:LIMIT_PRODUCT_COMBOS]
+        logger.info(
+            "Product interaction len(random_combinations) %d Visit Id: %d" %
+            (len(random_combinations), self.visit_id))
+        logger.info(
+            "Product interaction random_combinations %s Visit Id: %d" %
+            (str(random_combinations), self.visit_id))
 
         if len(random_combinations) == 0:
             return
@@ -178,8 +192,8 @@ class ShopBot(object):
                 for el in rc:
                     try:
                         if isinstance(el, list):
-                            select_el = self.driver.find_elements_by_xpath(el[0])
-                            option_el = self.driver.find_elements_by_xpath(el[1])
+                            select_el = find_elements_by_xpath(el[0])
+                            option_el = find_elements_by_xpath(el[1])
 
                             if select_el[0].tag_name.lower() == 'select':
                                 click_handler(option_el[0])
@@ -187,16 +201,19 @@ class ShopBot(object):
                                 click_handler(select_el[0])
                                 click_handler(option_el[0])
                         else:
-                            element = self.driver.find_elements_by_xpath(el)
+                            element = find_elements_by_xpath(el)
                             if element[0]:
                                 click_handler(element[0])
 
                         sleep(SLEEP_AFTER_CLICK)
-                    except:
-                        self.logger.exception("Error while interacting with product attributes on %s Visit Id: %d"
-                                         % (self.driver.current_url, self.visit_id))
+                    except Exception:
+                        logger.exception(
+                            "Error while interacting with product attributes "
+                            "on %s Visit Id: %d" % (driver.current_url,
+                                                    self.visit_id))
 
-        self.logger.info("Will end product interaction Visit Id: %d" % self.visit_id)
+        logger.info("Will end product interaction Visit Id: %d" %
+                    self.visit_id)
 
         return
 
@@ -210,7 +227,7 @@ class ShopBot(object):
 
     def dismiss_dialog(self):
         self.js(COMMON_JS + ';' + DISMISS_DIALOGS +
-                         ";return dismissDialog();")
+                ";return dismissDialog();")
 
 
 def capture_screenshots(visit_duration, **kwargs):
