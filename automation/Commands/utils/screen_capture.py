@@ -97,7 +97,7 @@ class ShopBot(object):
 
     def update_phase(self, phase):
         self.phase = phase
-        self.js('localStorage.setItem("openwpm-phase", %s)' % phase)
+        # self.js('localStorage.setItem("openwpm-phase", %s)' % phase)
 
     def click_add_to_cart(self):
         button = self.js(COMMON_JS + ';' + EXTRACT_ADD_TO_CART +
