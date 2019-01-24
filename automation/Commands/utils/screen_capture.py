@@ -258,55 +258,64 @@ def capture_screenshots(visit_duration, **kwargs):
     t_begin = time()
     for idx in xrange(0, visit_duration):
         t0 = time()
-        current_ps1 = get_ps_plus_1(driver.current_url)
-        if current_ps1 != landing_ps1:
-            logger.error(
-                "Will quit on %s Visit Id: %d "
-                "Phase: %s Reason: %s landing_url: %s" %
-                (driver.current_url, visit_id, shop_bot.phase,
-                 "off-domain navigation", landing_url))
-            return
-
-        shop_bot.act(t0-t_begin)
-        if shop_bot.reason_to_quit:
-            logger.info(
-                "Will quit on %s Visit Id: %d "
-                "Phase: %s Reason: %s cart_checkout_retries %d landing_url: %s"
-                % (driver.current_url, visit_id, shop_bot.phase,
-                   shop_bot.reason_to_quit,
-                   shop_bot.cart_checkout_retries, landing_url))
-            return
-
         try:
-            img_b64 = driver.get_screenshot_as_base64()
-        except Exception:
-            logger.exception("Error while taking screenshot on %s Visit Id: %d"
-                             % (driver.current_url, visit_id))
-            sleep(max([0, 1-(time() - t0)]))  # try to spend 1s on each loop
-            continue
-        new_image_crc = binascii.crc32(img_b64)
-        # check if the image has changed
-        if new_image_crc == last_image_crc:
-            sleep(max([0, 1-(time() - t0)]))  # try to spend 1s on each loop
-            continue
-        timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
-        out_png_path = "%s_%d_%s_%d.png" % (
-            screenshot_base_path, shop_bot.phase, timestamp, idx)
-        save_screenshot_b64(out_png_path, img_b64, logger)
-        last_image_crc = new_image_crc
-        loop_duration = time() - t0
-        logger.info(
-            "Saved screenshot on %s Visit Id: %d Loop: %d Phase: %s"
-            % (driver.current_url,
-               visit_id, idx, shop_bot.phase))
+            current_ps1 = get_ps_plus_1(driver.current_url)
+            if current_ps1 != landing_ps1:
+                logger.error(
+                    "Will quit on %s Visit Id: %d "
+                    "Phase: %s Reason: %s landing_url: %s" %
+                    (driver.current_url, visit_id, shop_bot.phase,
+                     "off-domain navigation", landing_url))
+                return
+            shop_bot.act(t0-t_begin)
+            if shop_bot.reason_to_quit:
+                logger.info(
+                    "Will quit on %s Visit Id: %d "
+                    "Phase: %s Reason: %s cart_checkout_retries %d landing_url: %s"
+                    % (driver.current_url, visit_id, shop_bot.phase,
+                       shop_bot.reason_to_quit,
+                       shop_bot.cart_checkout_retries, landing_url))
+                return
+            try:
+                img_b64 = driver.get_screenshot_as_base64()
+            except Exception:
+                logger.exception("Error while taking screenshot on %s Visit Id: %d"
+                                 % (driver.current_url, visit_id))
+                sleep(max([0, 1-(time() - t0)]))  # try to spend 1s on each loop
+                continue
+            new_image_crc = binascii.crc32(img_b64)
+            # check if the image has changed
+            if new_image_crc == last_image_crc:
+                sleep(max([0, 1-(time() - t0)]))  # try to spend 1s on each loop
+                continue
+            timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
+            out_png_path = "%s_%d_%s_%d.png" % (
+                screenshot_base_path, shop_bot.phase, timestamp, idx)
+            save_screenshot_b64(out_png_path, img_b64, logger)
+            last_image_crc = new_image_crc
+            loop_duration = time() - t0
+            logger.info(
+                "Saved screenshot on %s Visit Id: %d Loop: %d Phase: %s"
+                % (driver.current_url,
+                   visit_id, idx, shop_bot.phase))
 
-        sleep(max([0, 1-loop_duration]))
-        if (time() - t_begin) > visit_duration:  # timeout
-            logger.info("Timeout in capture_screenshots on %s "
-                        "Visit Id: %d Loop: %d Phase: %s"
-                        % (driver.current_url, visit_id, idx, shop_bot.phase))
+            sleep(max([0, 1-loop_duration]))
+            if (time() - t_begin) > visit_duration:  # timeout
+                logger.info("Timeout in capture_screenshots on %s "
+                            "Visit Id: %d Loop: %d Phase: %s"
+                            % (driver.current_url, visit_id, idx, shop_bot.phase))
+                break
+        except Exception as _:
+            try:
+                url = driver.current_url
+            except Exception as _:
+                url = "unknown"
 
-            break
+            logger.exception(
+                "Will quit on %s Visit Id: %d "
+                "Phase: %s Reason: %w landing_url: %s" %
+                (url, visit_id, shop_bot.phase,
+                 "unhandled error", landing_url))
     else:
         logger.info("Loop is over on %s "
                     "Visit Id: %d Loop: %d Phase: %s"
