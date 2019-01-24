@@ -1,20 +1,37 @@
 import sys
-from automation import TaskManager, CommandSequence
-from automation.Errors import CommandExecutionError
 import time
 import os
-from os.path import expanduser
-from automation.Commands.utils.screen_capture import capture_screenshots
 from urlparse import urlparse
+from datetime import datetime
+from os.path import expanduser, isfile
+from automation.Commands.utils.screen_capture import capture_screenshots
+from automation import TaskManager, CommandSequence
+from automation.Errors import CommandExecutionError
 
 CURRENT_SITE_INDEX_FILE = expanduser('~/.openwpm/current_site_index')
 REBOOT_FILE = expanduser('~/.openwpm/reboot')
 CRAWL_DONE_FILE = expanduser('~/.openwpm/crawl_done')
 
 DEBUG = False
-if len(sys.argv) > 1 and sys.argv[1] == "--debug":
+
+
+def print_usage():
+    print("Usage: python segment_pilot_crawl.py path/to/urls.csv")
+
+
+if len(sys.argv) != 2:
+    print_usage()
+    sys.exit(1)
+
+if sys.argv[1] == "--debug":
     print "DEBUG mode enabled"
     DEBUG = True
+elif isfile(sys.argv[1]):
+    csv_path = sys.argv[1]
+    print "Will crawl urls in ", csv_path
+else:
+    print_usage()
+    sys.exit(1)
 
 
 def write_to_file(file_path, data):
@@ -31,7 +48,8 @@ NUM_BATCH = 5000
 DATA_DIR = os.path.join(os.path.dirname(__file__), 'data')
 
 manager_params, browser_params = TaskManager.load_default_params(NUM_BROWSERS)
-date_prefix = '2019-01-22'  # Updated by deployment script
+
+date_prefix = datetime.now().strftime("%Y%m%d-%H%M%S")
 if DEBUG:
     date_prefix = 'debug-' + date_prefix
 
@@ -41,17 +59,27 @@ manager_params['data_directory'] = '~/' + prefix
 manager_params['log_directory'] = '~/' + prefix
 manager_params['testing'] = DEBUG
 # Read the site list
+
+
+def read_urls_from_csv(csv_path):
+    urls = []
+    for l in open(csv_path):
+        urls.append(l.rstrip())
+    return urls
+
+
 sites = []
 
 
 if DEBUG:
     sites = [
-        'https://www.jcpenney.com/p/xersion-tunic-top/ppr5007814157?pTmplType=regular',
+        'https://www.pantene.com/en-us/product/volume-body-boosting-mousse/1rUeADWNOgwOGiiyAGeGGq',
         # 'https://www.aaghalalfoods.jp/product/green-chillies-200-g/'
         ]
 else:
-    for l in open("500-product-links.csv"):
-        sites.append(l.rstrip())
+    sites = read_urls_from_csv(csv_path)
+    # for l in open("500-product-links.csv"):
+    #    sites.append(l.rstrip())
 
 TOTAL_NUM_SITES = len(sites)
 
@@ -62,6 +90,7 @@ for i in xrange(NUM_BROWSERS):
     browser_params[i]['js_instrument'] = True
     browser_params[i]['cookie_instrument'] = True
     browser_params[i]['http_instrument'] = True
+    browser_params[i]['save_javascript'] = True
 
 start_time = time.time()
 
