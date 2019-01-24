@@ -57,7 +57,7 @@ exports.run = function(crawlID, testing) {
         update["num_buttons"] = loggingDB.escapeString(data.numButtons);
         update["num_imgs"] = loggingDB.escapeString(data.numImgs);
         update["num_anchors"] = loggingDB.escapeString(data.numAnchors);
-        update["phase"] = loggingDB.escapeString(data.phase);
+        update["bg_color"] = loggingDB.escapeString(data.bgColor);
         update["time_stamp"] = data.mutationTimeStamp;
         loggingDB.saveRecord("segments", update);
       }
@@ -68,16 +68,6 @@ exports.run = function(crawlID, testing) {
         update["toggle_element_count"] = loggingDB.escapeString(data.toggleElementCount);
         update["select_element_count"] = loggingDB.escapeString(data.selectElementCount);
         loggingDB.saveRecord("interaction_logs", update);
-      }
-
-      function storePhase(data){
-        console.log("Will store phase", data)
-        ss.storage.dp_phase = data;
-      }
-
-      function getPhase(){
-        console.log("Will emit phase")
-        worker.port.emit("phase", ss.storage.dp_phase || 0);
       }
 
       function processCallsAndValues(data) {
@@ -119,8 +109,6 @@ exports.run = function(crawlID, testing) {
       worker.port.on("logMutation", function(data){processMutationSummaries(data)});
       worker.port.on("logSegment", function(data){processSegments(data)});
       worker.port.on("logInteraction", function(data){processInteractions(data)});
-      worker.port.on("storePhase", function(data){storePhase(data)});
-      worker.port.on("getPhase", function(data){getPhase()});
     }
   });
 };

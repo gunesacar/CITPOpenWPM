@@ -199,7 +199,7 @@ CREATE TABLE IF NOT EXISTS segments(
     num_buttons INTEGER,
     num_imgs INTEGER,
     num_anchors TEXT,
-    phase INTEGER,
+    bg_color TEXT,
     time_stamp TEXT NOT NULL
 );
 
