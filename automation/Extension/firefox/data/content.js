@@ -362,7 +362,7 @@ function getPageScript() {
 
     // For segmentation results
     function logSegment(nodeName, nodeId, innerText, style, boundingRect, timeStamp, outerHtml,
-        longestText, longestTextBoundingRect, longestTextStyle, numButtons, numImgs, numAnchors, bgColor) {
+        longestText, longestTextBoundingRect, longestTextStyle, longestTextBgColor, numButtons, numImgs, numAnchors, bgColor) {
       if(inLog)
         return;
       inLog = true;
@@ -385,6 +385,7 @@ function getPageScript() {
           longestTextTop: Math.round(longestTextBoundingRect.top),
           longestTextLeft: Math.round(longestTextBoundingRect.left),
           longestTextStyle: longestTextStyle,
+          longestTextBgColor: longestTextBgColor,
           numButtons: numButtons,
           numImgs: numImgs,
           numAnchors: numAnchors,
@@ -3586,13 +3587,16 @@ function getPageScript() {
     function logSegmentDetails(node, timeStamp){
       let longestTextStyle = "",
         longestTextBoundingRect = "",
-        longestText = "";
+        longestText = "",
+        longestTextBgColor = "";
+
       //let style = getNonDefaultStyles(node);
       let style = getComputedStyleAsString(node);
       let nodeId = addGuid(node);
       let boundingRect = getNodeBoundingClientRect(node);
       let innerText = node.innerText === undefined? "" : node.innerText.trim();
       let outerHtml = node.outerHTML;
+      let bgColor = getBackgroundColor(node);
       let longestTextNode = getLongestTextChild(node);
       if (longestTextNode){
         longestText = longestTextNode.wholeText.trim();
@@ -3602,16 +3606,17 @@ function getPageScript() {
           // TODO: should we redundantly store these?
           longestTextStyle = style;
           longestTextBoundingRect = boundingRect;
+          longestTextBgColor = bgColor;
         }else{
           //longestTextStyle = getNonDefaultStyles(longestTextParent);
           longestTextStyle = getComputedStyleAsString(longestTextParent);
           longestTextBoundingRect = getNodeBoundingClientRect(longestTextParent);
+          longestTextBgColor = getBackgroundColor(longestTextParent);
         }
       }
       let numButtons = countNodesOfType(node, "button");
       let numImgs = countNodesOfType(node, "img");
       let numAnchors = countNodesOfType(node, "a");
-      let bgColor = getBackgroundColor(node);
       const ENABLE_SEGMENT_LOGS = 0;
       if (ENABLE_SEGMENT_LOGS)
         console.log("Segment", timeStamp,
@@ -3624,6 +3629,7 @@ function getPageScript() {
                   ", longestText:", longestText,
                   ", longestTextBoundingRect:", longestTextBoundingRect,
                   ", longestTextStyle:", longestTextStyle,
+                  ", longestTextBgColor:", longestTextBgColor,
                   ", numButtons:", numButtons,
                   ", numImgs:", numImgs,
                   ", numAnchors:", numAnchors,
@@ -3632,7 +3638,7 @@ function getPageScript() {
       // TODO: pass all the info that we want to store
       logSegment(node.nodeName, nodeId, innerText,
           style, boundingRect, timeStamp, outerHtml, longestText,
-          longestTextBoundingRect, longestTextStyle, numButtons, numImgs, numAnchors, bgColor);
+          longestTextBoundingRect, longestTextStyle, longestTextBgColor, numButtons, numImgs, numAnchors, bgColor);
     }
 
     function segmentAndRecord(element){

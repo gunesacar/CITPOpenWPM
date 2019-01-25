@@ -54,6 +54,7 @@ exports.run = function(crawlID, testing) {
         update["longest_text_top"] = loggingDB.escapeString(data.longestTextTop);
         update["longest_text_left"] = loggingDB.escapeString(data.longestTextLeft);
         update["longest_text_style"] = loggingDB.escapeString(data.longestTextStyle);
+        update["longest_text_bg_color"] = loggingDB.escapeString(data.longestTextBgColor);
         update["num_buttons"] = loggingDB.escapeString(data.numButtons);
         update["num_imgs"] = loggingDB.escapeString(data.numImgs);
         update["num_anchors"] = loggingDB.escapeString(data.numAnchors);
