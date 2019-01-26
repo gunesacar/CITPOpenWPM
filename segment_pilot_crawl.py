@@ -7,6 +7,7 @@ from os.path import expanduser, isfile
 from automation.Commands.utils.screen_capture import capture_screenshots
 from automation import TaskManager, CommandSequence
 from automation.Errors import CommandExecutionError
+from automation.utilities.domain_utils import get_ps_plus_1
 
 CURRENT_SITE_INDEX_FILE = expanduser('~/.openwpm/current_site_index')
 REBOOT_FILE = expanduser('~/.openwpm/reboot')
@@ -61,10 +62,19 @@ manager_params['testing'] = DEBUG
 # Read the site list
 
 
-def read_urls_from_csv(csv_path):
-    urls = []
+def read_urls_from_csv(csv_path, add_home_pages=True):
+    urls = set()
+    added_domains = set()
     for l in open(csv_path):
-        urls.append(l.rstrip())
+        url = l.rstrip()
+        urls.add(url)
+        if not add_home_pages:
+            continue
+        domain = get_ps_plus_1(url)
+        if domain not in added_domains:
+            added_domains.add(domain)
+            homepage = "http://" + urlparse(url).hostname
+            urls.add(homepage)
     return urls
 
 
@@ -82,6 +92,8 @@ else:
     #    sites.append(l.rstrip())
 
 TOTAL_NUM_SITES = len(sites)
+
+print "TOTAL_NUM_SITES", TOTAL_NUM_SITES
 
 for i in xrange(NUM_BROWSERS):
     browser_params[i]['headless'] = True

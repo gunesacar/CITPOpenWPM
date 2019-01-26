@@ -1,6 +1,6 @@
 import os
 import shutil
-from os.path import join, isdir
+from os.path import join, isdir, isfile
 from ...MPLogger import loggingclient
 
 from time import sleep, time
@@ -237,7 +237,14 @@ class ShopBot(object):
 
 
 def dump_har(driver, logger, out_har_path):
+    """Use har-export-trigger extension to dump HAR content.
+
+    https://github.com/firebug/har-export-trigger
+    """
     ext_har_path = "export"
+    profile_path = driver.capabilities["moz:profile"]
+    ext_har_full_path = join(profile_path, "har", "logs",
+                             ext_har_path + ".har")
     driver.execute_script("""
         var options = {
           token: "test",      // Value of the token in your preferences
@@ -248,10 +255,13 @@ def dump_har(driver, logger, out_har_path):
           console.log("Exported HAR");
         });
     """ % ext_har_path)
-    sleep(3)
-    profile_path = driver.capabilities["moz:profile"]
-    ext_har_full_path = join(profile_path, "har", "logs", ext_har_path + ".har")
+    # JS call is async, wait until the har dump appears
+    while not isfile(ext_har_full_path):
+        sleep(1)
+    sleep(3)  # in case it takes a while to update
+    # copy from extension profile dir to crawl dir
     shutil.copy2(ext_har_full_path, out_har_path)
+
 
 def capture_screenshots(visit_duration, **kwargs):
     """Capture screenshots every second."""
