@@ -75,7 +75,7 @@ def read_urls_from_csv(csv_path, add_home_pages=True):
             added_domains.add(domain)
             homepage = "http://" + urlparse(url).hostname
             urls.add(homepage)
-    return urls
+    return list(urls)
 
 
 sites = []

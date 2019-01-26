@@ -236,7 +236,7 @@ class ShopBot(object):
                 ";return dismissDialog();")
 
 
-def dump_har(driver, logger, out_har_path):
+def dump_har(driver, logger, out_har_path, visit_id):
     """Use har-export-trigger extension to dump HAR content.
 
     https://github.com/firebug/har-export-trigger
@@ -245,17 +245,20 @@ def dump_har(driver, logger, out_har_path):
     profile_path = driver.capabilities["moz:profile"]
     ext_har_full_path = join(profile_path, "har", "logs",
                              ext_har_path + ".har")
-    driver.execute_script("""
+    rv = driver.execute_script("""
         var options = {
           token: "test",      // Value of the token in your preferences
           fileName: "%s"  // Name of the file
         };
 
-        HAR.triggerExport(options).then(result => {
+        return ("HAR" in window) && HAR.triggerExport(options).then(result => {
           console.log("Exported HAR");
         });
     """ % ext_har_path)
     # JS call is async, wait until the har dump appears
+    if rv is False:
+        logger.warning("HAR export is not available %s" % rv)
+        return
     while not isfile(ext_har_full_path):
         sleep(1)
     sleep(3)  # in case it takes a while to update
@@ -273,16 +276,6 @@ def capture_screenshots(visit_duration, **kwargs):
     landing_ps1 = get_ps_plus_1(landing_url)
     shop_bot = ShopBot(driver, visit_id, manager_params, logger, landing_url)
     screenshot_dir = manager_params['screenshot_path']
-    har_dir = screenshot_dir.replace("screenshots", "hars")
-    if not isdir(har_dir):
-        os.makedirs(har_dir)
-    screenshot_base_path = join(screenshot_dir, "%d_%s" % (
-        visit_id, urlparse(landing_url).hostname))
-    har_base_path = join(har_dir, "%d_%s" % (
-        visit_id, urlparse(landing_url).hostname))
-    har_path = "%s_%s.har" % (har_base_path,
-                          datetime.utcnow().strftime("%Y%m%d%H%M%S"))
-    dump_har(driver, logger, har_path)
 
     if not shop_bot.can_execute_js():
         logger.warning(
@@ -296,6 +289,18 @@ def capture_screenshots(visit_duration, **kwargs):
             % (driver.current_url, visit_id))
         return False
 
+    har_dir = screenshot_dir.replace("screenshots", "hars")
+    if not isdir(har_dir):
+        os.makedirs(har_dir)
+    screenshot_base_path = join(screenshot_dir, "%d_%s" % (
+        visit_id, urlparse(landing_url).hostname))
+    har_base_path = join(har_dir, "%d_%s" % (
+        visit_id, urlparse(landing_url).hostname))
+    har_path = "%s_%s.har" % (har_base_path,
+                              datetime.utcnow().strftime("%Y%m%d%H%M%S"))
+
+    dump_har(driver, logger, har_path, visit_id)
+
     last_image_crc = 0
     t_begin = time()
     for idx in xrange(0, visit_duration):
@@ -308,7 +313,7 @@ def capture_screenshots(visit_duration, **kwargs):
                     "Phase: %s Reason: %s landing_url: %s" %
                     (driver.current_url, visit_id, shop_bot.phase,
                      "off-domain navigation", landing_url))
-                return
+                break
             shop_bot.act(t0-t_begin)
             if shop_bot.reason_to_quit:
                 logger.info(
@@ -317,7 +322,7 @@ def capture_screenshots(visit_duration, **kwargs):
                     % (driver.current_url, visit_id, shop_bot.phase,
                        shop_bot.reason_to_quit,
                        shop_bot.cart_checkout_retries, landing_url))
-                return
+                break
             try:
                 img_b64 = driver.get_screenshot_as_base64()
             except Exception:
@@ -363,9 +368,10 @@ def capture_screenshots(visit_duration, **kwargs):
                     "Visit Id: %d Loop: %d Phase: %s"
                     % (driver.current_url, visit_id, idx, shop_bot.phase))
 
-    har_path = "%s_%s.har" % (har_base_path,
-                          datetime.utcnow().strftime("%Y%m%d%H%M%S"))
-    dump_har(driver, logger, har_path)
+    har_path = "%s_%s.har" % (
+        har_base_path,
+        datetime.utcnow().strftime("%Y%m%d%H%M%S"))
+    dump_har(driver, logger, har_path, visit_id)
 
 
 def click_handler(element):
