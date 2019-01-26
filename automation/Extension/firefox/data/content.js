@@ -3754,6 +3754,7 @@ function getPageScript() {
           queries: [{all: true}]})
       }, TIME_BEFORE_SEGMENT);
     }
+
     window.addEventListener("load", function(){
       let pageSegments = [];  // list of segments, functions in this closure access and update this list
       // run segmentation in all frames

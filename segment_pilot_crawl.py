@@ -73,7 +73,7 @@ sites = []
 
 if DEBUG:
     sites = [
-        'https://www.pantene.com/en-us/product/volume-body-boosting-mousse/1rUeADWNOgwOGiiyAGeGGq',
+        'http://janodvarko.cz/har/tests/har-export-trigger/har-export-api.html',
         # 'https://www.aaghalalfoods.jp/product/green-chillies-200-g/'
         ]
 else:
@@ -91,6 +91,7 @@ for i in xrange(NUM_BROWSERS):
     browser_params[i]['cookie_instrument'] = True
     browser_params[i]['http_instrument'] = True
     browser_params[i]['save_javascript'] = True
+    browser_params[i]['har-export'] = True
 
 start_time = time.time()
 
@@ -125,7 +126,7 @@ for i in range(start_index, end_index):
         url = sites[i]
         cs = CommandSequence.CommandSequence(
             url, reset=True)
-        TIME_ON_PAGE = 300  # product interaction = 125, initial wait 10
+        TIME_ON_PAGE = 500  # product interaction = 125, initial wait 10
         # + time for click to addtocart,viewcart,checkout
         GET_TIMEOUT = TIME_ON_PAGE * 2  # must be longer than the TIME_ON_PAGE
         cs.get(sleep=1, timeout=GET_TIMEOUT)
