@@ -1,4 +1,6 @@
-from os.path import join
+import os
+import shutil
+from os.path import join, isdir, isfile
 from ...MPLogger import loggingclient
 
 from time import sleep, time
@@ -169,6 +171,7 @@ class ShopBot(object):
         self.time_to_quit = time() + SLEEP_AFTER_CHECKOUT_CLICK
 
     def interact_with_product_attrs(self):
+        t_begin = time()
         driver = self.driver
         find_elements_by_xpath = driver.find_elements_by_xpath
         logger = self.logger
@@ -186,26 +189,30 @@ class ShopBot(object):
         logger.info(
             "Product interaction random_combinations %s Visit Id: %d" %
             (str(random_combinations), self.visit_id))
-
+        PRODUCT_INTERACTION_TIMEOUT = 150
         if len(random_combinations) == 0:
             return
         else:
             for rc in random_combinations:
+                if (time() - t_begin) > PRODUCT_INTERACTION_TIMEOUT:
+                    logger.info(
+                        "Product interaction timeout Visit Id: %d" % self.visit_id)
+                    break
                 for el in rc:
                     try:
                         if isinstance(el, list):
                             select_el = find_elements_by_xpath(el[0])
                             option_el = find_elements_by_xpath(el[1])
 
-                            if select_el[0].tag_name.lower() == 'select':
+                            if len(select_el) == 1 and select_el[0].tag_name.lower() == 'select':
                                 select_el = Select(select_el[0])
                                 select_el.select_by_visible_text(option_el[0].text)
-                            else:
+                            elif len(select_el) == 1:
                                 click_handler(select_el[0])
                                 click_handler(option_el[0])
                         else:
                             element = find_elements_by_xpath(el)
-                            if element[0]:
+                            if len(element) == 1 and element[0]:
                                 click_handler(element[0])
 
                         sleep(SLEEP_AFTER_CLICK)
@@ -217,7 +224,6 @@ class ShopBot(object):
 
         logger.info("Will end product interaction Visit Id: %d" %
                     self.visit_id)
-
         return
 
     def process_checkout(self):
@@ -233,6 +239,33 @@ class ShopBot(object):
                 ";return dismissDialog();")
 
 
+def dump_har(driver, logger, out_har_path):
+    """Use har-export-trigger extension to dump HAR content.
+
+    https://github.com/firebug/har-export-trigger
+    """
+    ext_har_path = "export"
+    profile_path = driver.capabilities["moz:profile"]
+    ext_har_full_path = join(profile_path, "har", "logs",
+                             ext_har_path + ".har")
+    driver.execute_script("""
+        var options = {
+          token: "test",      // Value of the token in your preferences
+          fileName: "%s"  // Name of the file
+        };
+
+        HAR.triggerExport(options).then(result => {
+          console.log("Exported HAR");
+        });
+    """ % ext_har_path)
+    # JS call is async, wait until the har dump appears
+    while not isfile(ext_har_full_path):
+        sleep(1)
+    sleep(3)  # in case it takes a while to update
+    # copy from extension profile dir to crawl dir
+    shutil.copy2(ext_har_full_path, out_har_path)
+
+
 def capture_screenshots(visit_duration, **kwargs):
     """Capture screenshots every second."""
     driver = kwargs['driver']
@@ -242,6 +275,17 @@ def capture_screenshots(visit_duration, **kwargs):
     landing_url = driver.current_url
     landing_ps1 = get_ps_plus_1(landing_url)
     shop_bot = ShopBot(driver, visit_id, manager_params, logger, landing_url)
+    screenshot_dir = manager_params['screenshot_path']
+    har_dir = screenshot_dir.replace("screenshots", "hars")
+    if not isdir(har_dir):
+        os.makedirs(har_dir)
+    screenshot_base_path = join(screenshot_dir, "%d_%s" % (
+        visit_id, urlparse(landing_url).hostname))
+    har_base_path = join(har_dir, "%d_%s" % (
+        visit_id, urlparse(landing_url).hostname))
+    har_path = "%s_%s.har" % (har_base_path,
+                          datetime.utcnow().strftime("%Y%m%d%H%M%S"))
+    dump_har(driver, logger, har_path)
 
     if not shop_bot.can_execute_js():
         logger.warning(
@@ -254,9 +298,7 @@ def capture_screenshots(visit_duration, **kwargs):
             "Will quit. Reason: not a product page on %s Visit Id: %d"
             % (driver.current_url, visit_id))
         return False
-    screenshot_dir = manager_params['screenshot_path']
-    screenshot_base_path = join(screenshot_dir, "%d_%s" % (
-        visit_id, urlparse(landing_url).hostname))
+
     last_image_crc = 0
     t_begin = time()
     for idx in xrange(0, visit_duration):
@@ -316,13 +358,17 @@ def capture_screenshots(visit_duration, **kwargs):
 
             logger.exception(
                 "Will quit on %s Visit Id: %d "
-                "Phase: %s Reason: %w landing_url: %s" %
+                "Phase: %s Reason: %s landing_url: %s" %
                 (url, visit_id, shop_bot.phase,
                  "unhandled error", landing_url))
     else:
         logger.info("Loop is over on %s "
                     "Visit Id: %d Loop: %d Phase: %s"
                     % (driver.current_url, visit_id, idx, shop_bot.phase))
+
+    har_path = "%s_%s.har" % (har_base_path,
+                          datetime.utcnow().strftime("%Y%m%d%H%M%S"))
+    dump_har(driver, logger, har_path)
 
 
 def click_handler(element):

@@ -22,6 +22,13 @@ def privacy(browser_params, fp, fo, root_dir, browser_profile_path):
     if not os.path.isdir(storage_dir):
         os.mkdir(storage_dir)
 
+
+    if browser_params['har-export']:
+        fo.set_preference("extensions.netmonitor.har.contentAPIToken", "test")
+        fo.set_preference("extensions.netmonitor.har.enableAutomation", True)
+        fo.set_preference("extensions.netmonitor.har.autoConnect", True)
+        fo.set_preference("devtools.netmonitor.har.enableAutoExportToFile", True)
+
     # Turns on Do Not Track
     if browser_params['donottrack']:
         fo.set_preference("privacy.donottrackheader.enabled", True)
@@ -70,6 +77,11 @@ def privacy(browser_params, fp, fo, root_dir, browser_profile_path):
         fp.add_extension(extension=os.path.join(
             root_dir, 'firefox_extensions',
             'https_everywhere-2017.10.4.xpi'))
+
+    if browser_params['har-export']:
+        fp.add_extension(extension=os.path.join(
+            root_dir, 'firefox_extensions',
+            'harexporttrigger-0.5.0-beta.10.xpi'))
 
     # uBlock Origin
     # Updated: 2017-10-7
