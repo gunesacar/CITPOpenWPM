@@ -11,7 +11,7 @@ import base64
 from selenium.common.exceptions import WebDriverException
 from webdriver_extensions import click_to_element
 from ...utilities.domain_utils import get_ps_plus_1
-
+from selenium.webdriver.support.ui import Select
 
 def save_screenshot_b64(out_png_path, image_b64, logger):
     try:
@@ -70,8 +70,10 @@ class ShopBot(object):
             sleep(SLEEP_AFTER_CLICK)
             self.click_add_to_cart()
         elif self.phase == PHASE_SEARCHING_VIEW_CART:
+            self.dismiss_dialog()
             self.click_view_cart()
         elif self.phase == PHASE_SEARCHING_CHECKOUT:
+            self.dismiss_dialog()
             self.click_checkout()
         elif self.phase == PHASE_ON_CHECKOUT_PAGE:
             self.process_checkout()
@@ -203,7 +205,8 @@ class ShopBot(object):
                             option_el = find_elements_by_xpath(el[1])
 
                             if len(select_el) == 1 and select_el[0].tag_name.lower() == 'select':
-                                click_handler(option_el[0])
+                                select_el = Select(select_el[0])
+                                select_el.select_by_visible_text(option_el[0].text)
                             elif len(select_el) == 1:
                                 click_handler(select_el[0])
                                 click_handler(option_el[0])
@@ -388,7 +391,17 @@ def click_handler(element):
 
         children = element.find_elements_by_xpath("*")
         if len(children) > 0:
-            click_to_element(children[0])
+
+            visible_child = None
+            for child in children:
+                if child.is_displayed():
+                    visible_child = child
+                    break
+
+            if visible_child:
+                click_to_element(visible_child)
+            else:
+                click_to_element(children[0])
         else:
             click_to_element(element)
 
