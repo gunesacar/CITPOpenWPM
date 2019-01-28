@@ -22,12 +22,11 @@ def privacy(browser_params, fp, fo, root_dir, browser_profile_path):
     if not os.path.isdir(storage_dir):
         os.mkdir(storage_dir)
 
-
     if browser_params['har-export']:
         fo.set_preference("extensions.netmonitor.har.contentAPIToken", "test")
         fo.set_preference("extensions.netmonitor.har.enableAutomation", True)
         fo.set_preference("extensions.netmonitor.har.autoConnect", True)
-        fo.set_preference("devtools.netmonitor.har.enableAutoExportToFile", True)
+        fo.set_preference("devtools.netmonitor.persistlog", True)
 
     # Turns on Do Not Track
     if browser_params['donottrack']:

@@ -13,17 +13,6 @@ from webdriver_extensions import click_to_element
 from ...utilities.domain_utils import get_ps_plus_1
 from selenium.webdriver.support.ui import Select
 
-def save_screenshot_b64(out_png_path, image_b64, logger):
-    try:
-        with open(out_png_path, 'wb') as f:
-            f.write(base64.b64decode(image_b64.encode('ascii')))
-    except Exception:
-        logger.exception("Error while saving screenshot to %s"
-                         % (out_png_path))
-        return False
-    return True
-
-
 COMMON_JS = open('../common.js').read()
 EXTRACT_ADD_TO_CART = open('../extract_add_to_cart.js').read()
 EXTRACT_PRODUCT_OPTIONS = open('../extract_product_options.js').read()
@@ -44,6 +33,17 @@ MAX_CART_CHECKOUT_RETRIES = 3
 
 # if positive, will limit the number of combinations to make it faster
 LIMIT_PRODUCT_COMBOS = 0
+
+
+def save_screenshot_b64(out_png_path, image_b64, logger):
+    try:
+        with open(out_png_path, 'wb') as f:
+            f.write(base64.b64decode(image_b64.encode('ascii')))
+    except Exception:
+        logger.exception("Error while saving screenshot to %s"
+                         % (out_png_path))
+        return False
+    return True
 
 
 class ShopBot(object):
@@ -196,7 +196,8 @@ class ShopBot(object):
             for rc in random_combinations:
                 if (time() - t_begin) > PRODUCT_INTERACTION_TIMEOUT:
                     logger.info(
-                        "Product interaction timeout Visit Id: %d" % self.visit_id)
+                        "Product interaction timeout Visit Id: %d" %
+                        self.visit_id)
                     break
                 for el in rc:
                     try:
@@ -204,9 +205,11 @@ class ShopBot(object):
                             select_el = find_elements_by_xpath(el[0])
                             option_el = find_elements_by_xpath(el[1])
 
-                            if len(select_el) == 1 and select_el[0].tag_name.lower() == 'select':
+                            if (len(select_el) == 1 and
+                                    select_el[0].tag_name.lower() == 'select'):
                                 select_el = Select(select_el[0])
-                                select_el.select_by_visible_text(option_el[0].text)
+                                select_el.select_by_visible_text(
+                                    option_el[0].text)
                             elif len(select_el) == 1:
                                 click_handler(select_el[0])
                                 click_handler(option_el[0])
@@ -250,8 +253,8 @@ def dump_har(driver, logger, out_har_path, visit_id):
                              ext_har_path + ".har")
     rv = driver.execute_script("""
         var options = {
-          token: "test",      // Value of the token in your preferences
-          fileName: "%s"  // Name of the file
+          token: "test",
+          fileName: "%s"
         };
 
         return ("HAR" in window) && HAR.triggerExport(options).then(result => {
@@ -295,14 +298,10 @@ def capture_screenshots(visit_duration, **kwargs):
     har_dir = screenshot_dir.replace("screenshots", "hars")
     if not isdir(har_dir):
         os.makedirs(har_dir)
-    screenshot_base_path = join(screenshot_dir, "%d_%s" % (
-        visit_id, urlparse(landing_url).hostname))
     har_base_path = join(har_dir, "%d_%s" % (
         visit_id, urlparse(landing_url).hostname))
-    har_path = "%s_%s.har" % (har_base_path,
-                              datetime.utcnow().strftime("%Y%m%d%H%M%S"))
-
-    dump_har(driver, logger, har_path, visit_id)
+    screenshot_base_path = join(screenshot_dir, "%d_%s" % (
+        visit_id, urlparse(landing_url).hostname))
 
     last_image_crc = 0
     t_begin = time()
@@ -321,7 +320,8 @@ def capture_screenshots(visit_duration, **kwargs):
             if shop_bot.reason_to_quit:
                 logger.info(
                     "Will quit on %s Visit Id: %d "
-                    "Phase: %s Reason: %s cart_checkout_retries %d landing_url: %s"
+                    "Phase: %s Reason: %s cart_checkout_retries %d"
+                    " landing_url: %s"
                     % (driver.current_url, visit_id, shop_bot.phase,
                        shop_bot.reason_to_quit,
                        shop_bot.cart_checkout_retries, landing_url))
@@ -329,8 +329,9 @@ def capture_screenshots(visit_duration, **kwargs):
             try:
                 img_b64 = driver.get_screenshot_as_base64()
             except Exception:
-                logger.exception("Error while taking screenshot on %s Visit Id: %d"
-                                 % (driver.current_url, visit_id))
+                logger.exception(
+                    "Error while taking screenshot on %s Visit Id: %d"
+                    % (driver.current_url, visit_id))
                 sleep(max([0, 1-(time() - t0)]))  # try to spend 1s on each loop
                 continue
             new_image_crc = binascii.crc32(img_b64)
@@ -353,7 +354,8 @@ def capture_screenshots(visit_duration, **kwargs):
             if (time() - t_begin) > visit_duration:  # timeout
                 logger.info("Timeout in capture_screenshots on %s "
                             "Visit Id: %d Loop: %d Phase: %s"
-                            % (driver.current_url, visit_id, idx, shop_bot.phase))
+                            % (driver.current_url, visit_id, idx,
+                               shop_bot.phase))
                 break
         except Exception as _:
             try:

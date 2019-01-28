@@ -62,7 +62,7 @@ manager_params['testing'] = DEBUG
 # Read the site list
 
 
-def read_urls_from_csv(csv_path, add_home_pages=True):
+def read_urls_from_csv(csv_path, add_home_pages=False):
     urls = set()
     added_domains = set()
     for l in open(csv_path):
@@ -83,8 +83,7 @@ sites = []
 
 if DEBUG:
     sites = [
-        'http://janodvarko.cz/har/tests/har-export-trigger/har-export-api.html',
-        # 'https://www.aaghalalfoods.jp/product/green-chillies-200-g/'
+        'https://lebrontshirtsla.com/products/lebron-james-lakers-t-shirt-witness'
         ]
 else:
     sites = read_urls_from_csv(csv_path)
