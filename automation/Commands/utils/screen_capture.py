@@ -64,6 +64,7 @@ class ShopBot(object):
         if seconds_since_load < SLEEP_UNTIL_DIALOG_DISMISSAL:
             return
         if self.phase == PHASE_ON_PRODUCT_PAGE:
+            self.dismiss_dialog()
             self.interact_with_product_attrs()
             sleep(SLEEP_AFTER_CLICK)
             self.dismiss_dialog()
