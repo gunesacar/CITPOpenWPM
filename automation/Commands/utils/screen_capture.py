@@ -71,10 +71,8 @@ class ShopBot(object):
             sleep(SLEEP_AFTER_CLICK)
             self.click_add_to_cart()
         elif self.phase == PHASE_SEARCHING_VIEW_CART:
-            self.dismiss_dialog()
             self.click_view_cart()
         elif self.phase == PHASE_SEARCHING_CHECKOUT:
-            self.dismiss_dialog()
             self.click_checkout()
         elif self.phase == PHASE_ON_CHECKOUT_PAGE:
             self.process_checkout()
