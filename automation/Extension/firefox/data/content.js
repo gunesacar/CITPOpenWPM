@@ -3367,11 +3367,10 @@ function getPageScript() {
         elements = elements.concat(getElementsByXPath('.//' + ce + '[@*[contains(.,\'Dismiss\') and not(contains(.,\'/\'))]]', element, doc));
 
         elements = elements.concat(getElementsByXPath('.//' + ce + '[text()[contains(., \'Agree\')]]', element, doc));
-        elements = elements.concat(getElementsByXPath('.//' + ce + '[text()[contains(., \'agree\')]]', element, doc));
+        elements = elements.concat(getElementsByXPath('.//' + ce + '[text()[contains(., \'AGREE\')]]', element, doc));
 
         elements = elements.concat(getElementsByXPath('.//' + ce + '[text()[contains(., \'No \')]]', element, doc));
-
-        elements = elements.concat(getElementsByXPath('.//' + ce + '[text()[contains(., \'Yes\')]]', element, doc));
+        elements = elements.concat(getElementsByXPath('.//' + ce + '[text()[contains(., \'NO \')]]', element, doc));
 
         result = result.concat(elements.filter(x => isShown(x) && (x.style.offsetHeight !== 0 || x.style.offsetWidth !== 0)));
       }
