@@ -3369,6 +3369,12 @@ function getPageScript() {
         elements = elements.concat(getElementsByXPath('.//' + ce + '[text()[contains(., \'Agree\')]]', element, doc));
         elements = elements.concat(getElementsByXPath('.//' + ce + '[text()[contains(., \'AGREE\')]]', element, doc));
 
+        elements = elements.concat(getElementsByXPath('.//' + ce + '[text()[contains(., \'ENTER\')]]', element, doc));
+        elements = elements.concat(getElementsByXPath('.//' + ce + '[text()[contains(., \'Enter\')]]', element, doc));
+
+        elements = elements.concat(getElementsByXPath('.//' + ce + '[text()[contains(., \'YES\')]]', element, doc));
+        elements = elements.concat(getElementsByXPath('.//' + ce + '[text()[contains(., \'Yes\')]]', element, doc));
+
         elements = elements.concat(getElementsByXPath('.//' + ce + '[text()[contains(., \'No \')]]', element, doc));
         elements = elements.concat(getElementsByXPath('.//' + ce + '[text()[contains(., \'NO \')]]', element, doc));
 
@@ -3392,13 +3398,13 @@ function getPageScript() {
 
     //closeDialog(getPopupContainer());
 
-    function dismissDialog(){
+    function dismissDialog() {
       let popup = getPopupContainer();
       if (popup){
         return closeDialog(popup);
       }
       return 0;
-     }
+    }
 
     /* dismiss_dialogs.js - End */
     /******************************************/
