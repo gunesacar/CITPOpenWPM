@@ -3227,7 +3227,6 @@ function getPageScript() {
 
     /******************************************/
     /* dismiss_dialogs.js - Start */
-
     /* This file is used to locate the div element of a web page that might contain
     close buttons to dismiss a modal dialog */
 
@@ -3351,7 +3350,7 @@ function getPageScript() {
     };
 
     var closeDialog = function(element) {
-      var closeElements = ['button', 'a', 'div', 'span', 'img'];
+      var closeElements = ['button', 'a', 'div', 'span', 'img', 'label'];
       var result = [];
 
       var doc = document;
@@ -3372,6 +3371,8 @@ function getPageScript() {
 
         elements = elements.concat(getElementsByXPath('.//' + ce + '[text()[contains(., \'No \')]]', element, doc));
 
+        elements = elements.concat(getElementsByXPath('.//' + ce + '[text()[contains(., \'Yes\')]]', element, doc));
+
         result = result.concat(elements.filter(x => isShown(x) && (x.style.offsetHeight !== 0 || x.style.offsetWidth !== 0)));
       }
 
@@ -3387,10 +3388,18 @@ function getPageScript() {
 
         }
       }
+      return result.length;
     };
 
     //closeDialog(getPopupContainer());
 
+    function dismissDialog(){
+      let popup = getPopupContainer();
+      if (popup){
+        return closeDialog(popup);
+      }
+      return 0;
+     }
 
     /* dismiss_dialogs.js - End */
     /******************************************/
