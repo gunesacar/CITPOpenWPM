@@ -368,6 +368,7 @@ def capture_screenshots(visit_duration, **kwargs):
                 "Phase: %s Reason: %s landing_url: %s" %
                 (url, visit_id, shop_bot.phase,
                  "unhandled error", landing_url))
+            break
     else:
         logger.info("Loop is over on %s "
                     "Visit Id: %d Loop: %d Phase: %s"
