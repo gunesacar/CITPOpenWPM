@@ -1,5 +1,6 @@
 from __future__ import absolute_import
 
+import pytest
 from . import utilities
 from ..automation import CommandSequence, TaskManager
 from ..automation.utilities import db_utils
@@ -41,6 +42,7 @@ class TestStorageVectors(OpenWPMTest):
     def get_config(self, data_dir=""):
         return self.get_test_config(data_dir)
 
+    @pytest.mark.skip(reason="no way of currently testing this")
     def test_flash_cookies(self):
         """ Check that some Flash LSOs are saved and
         are properly keyed in db."""

@@ -22,6 +22,7 @@ class TestJSInstrument(OpenWPMTest):
         return manager_params, browser_params
 
     def test_should_segment_product_and_non_product_pages(self):
+
         db = self.visit(PRODUCT_PAGE_URL, sleep_after=1)
         rows = db_utils.query_db(db, "SELECT inner_text from segments")
         segment_text = [row["inner_text"] for row in rows]
