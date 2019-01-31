@@ -4,7 +4,7 @@ import os
 from urlparse import urlparse
 from datetime import datetime
 from os.path import expanduser, isfile
-from automation.Commands.utils.screen_capture import interact_with_the_product_page
+from automation.Commands.utils.screen_capture import capture_screenshots
 from automation import TaskManager, CommandSequence
 from automation.Errors import CommandExecutionError
 from automation.utilities.domain_utils import get_ps_plus_1
@@ -17,7 +17,7 @@ DEBUG = False
 
 
 def print_usage():
-    print("Usage: python segment_pilot_crawl.py path/to/urls.csv")
+    print("Usage: python screenshot_crawl.py path/to/urls.csv")
 
 
 if len(sys.argv) != 2:
@@ -41,7 +41,8 @@ def write_to_file(file_path, data):
 
 
 # The list of sites that we wish to crawl
-if DEBUG:
+USE_SINGLE_BROWSER = False
+if USE_SINGLE_BROWSER or DEBUG:
     NUM_BROWSERS = 1
 else:
     NUM_BROWSERS = 7
@@ -137,15 +138,16 @@ for i in range(start_index, end_index):
         url = sites[i]
         cs = CommandSequence.CommandSequence(
             url, reset=True)
-        TIME_ON_PAGE = 500  # product interaction = 125, initial wait 10
+        N_SCREENSHOTS = 5
+        TIME_ON_PAGE = 5  # product interaction = 125, initial wait 10
         # + time for click to addtocart,viewcart,checkout
-        GET_TIMEOUT = TIME_ON_PAGE * 2  # must be longer than the TIME_ON_PAGE
+        GET_TIMEOUT = 60  # must be longer than the TIME_ON_PAGE
         cs.get(sleep=1, timeout=GET_TIMEOUT)
         # cs.run_custom_function(close_dialogs, ())
         hostname = urlparse(url).hostname
-        cs.dump_page_source(hostname, timeout=TIME_ON_PAGE+5)
-        cs.run_custom_function(interact_with_the_product_page, (TIME_ON_PAGE,),
-                               timeout=TIME_ON_PAGE+5)
+        cs.dump_page_source(hostname, timeout=30+5)
+        cs.run_custom_function(capture_screenshots, (N_SCREENSHOTS,),
+                               timeout=30)  # 15 until dialog dismissal + 5 for screenshots + 3 for har
         manager.execute_command_sequence(cs)
         if not DEBUG:
             write_to_file(CURRENT_SITE_INDEX_FILE, str(i))

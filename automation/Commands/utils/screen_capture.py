@@ -271,7 +271,7 @@ def dump_har(driver, logger, out_har_path, visit_id):
     shutil.copy2(ext_har_full_path, out_har_path)
 
 
-def capture_screenshots(visit_duration, **kwargs):
+def interact_with_the_product_page(visit_duration, **kwargs):
     """Capture screenshots every second."""
     driver = kwargs['driver']
     visit_id = kwargs['visit_id']
@@ -351,7 +351,7 @@ def capture_screenshots(visit_duration, **kwargs):
 
             sleep(max([0, 1-loop_duration]))
             if (time() - t_begin) > visit_duration:  # timeout
-                logger.info("Timeout in capture_screenshots on %s "
+                logger.info("Timeout in interact_with_the_product_page on %s "
                             "Visit Id: %d Loop: %d Phase: %s"
                             % (driver.current_url, visit_id, idx,
                                shop_bot.phase))
@@ -408,3 +408,74 @@ def click_handler(element):
             click_to_element(element)
 
         return
+
+
+def capture_screenshots(n_screenshots, **kwargs):
+    """Capture screenshots every second."""
+    driver = kwargs['driver']
+    visit_id = kwargs['visit_id']
+    manager_params = kwargs['manager_params']
+    logger = loggingclient(*manager_params['logger_address'])
+    landing_url = driver.current_url
+    screenshot_dir = manager_params['screenshot_path']
+
+    har_dir = screenshot_dir.replace("screenshots", "hars")
+    if not isdir(har_dir):
+        os.makedirs(har_dir)
+    har_base_path = join(har_dir, "%d_%s" % (
+        visit_id, urlparse(landing_url).hostname))
+    screenshot_base_path = join(screenshot_dir, "%d_%s" % (
+        visit_id, urlparse(landing_url).hostname))
+    sleep(SLEEP_UNTIL_DIALOG_DISMISSAL)
+    phase = 0
+    last_image_crc = 0
+    t_begin = time()
+    for idx in xrange(0, n_screenshots+1):
+        t0 = time()
+        try:
+            try:
+                img_b64 = driver.get_screenshot_as_base64()
+            except Exception:
+                logger.exception(
+                    "Error while taking screenshot on %s Visit Id: %d"
+                    % (driver.current_url, visit_id))
+                sleep(max([0, 1-(time() - t0)]))  # try to spend 1s on each loop
+                continue
+            new_image_crc = binascii.crc32(img_b64)
+            # check if the image has changed
+            if new_image_crc == last_image_crc:
+                sleep(max([0, 1-(time() - t0)]))  # try to spend 1s on each it.
+                continue
+            timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
+            out_png_path = "%s_%s_%d.png" % (
+                screenshot_base_path, timestamp, idx)
+            save_screenshot_b64(out_png_path, img_b64, logger)
+            last_image_crc = new_image_crc
+            loop_duration = time() - t0
+            logger.info(
+                "Saved screenshot on %s Visit Id: %d Loop: %d Phase: %s"
+                % (driver.current_url,
+                   visit_id, idx, phase))
+
+            sleep(max([0, 1-loop_duration]))
+        except Exception as _:
+            try:
+                url = driver.current_url
+            except Exception as _:
+                url = "unknown"
+
+            logger.exception(
+                "Will quit on %s Visit Id: %d "
+                "Phase: %s Reason: %s landing_url: %s" %
+                (url, visit_id, phase,
+                 "unhandled error", landing_url))
+            break
+    else:
+        logger.info("Loop is over on %s "
+                    "Visit Id: %d Loop: %d Phase: %s"
+                    % (driver.current_url, visit_id, idx, phase))
+
+    har_path = "%s_%s.har" % (
+        har_base_path,
+        datetime.utcnow().strftime("%Y%m%d%H%M%S"))
+    dump_har(driver, logger, har_path, visit_id)
