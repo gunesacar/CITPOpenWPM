@@ -424,13 +424,13 @@ def capture_screenshots(n_screenshots, **kwargs):
         os.makedirs(har_dir)
     har_base_path = join(har_dir, "%d_%s" % (
         visit_id, urlparse(landing_url).hostname))
-    screenshot_base_path = join(screenshot_dir, "%d_%s" % (
-        visit_id, urlparse(landing_url).hostname))
+    screenshot_base_path = join(screenshot_dir, "%s" % (
+        urlparse(landing_url).hostname))
     sleep(SLEEP_UNTIL_DIALOG_DISMISSAL)
     phase = 0
     last_image_crc = 0
     t_begin = time()
-    for idx in xrange(0, n_screenshots+1):
+    for idx in xrange(0, n_screenshots):
         t0 = time()
         try:
             try:
