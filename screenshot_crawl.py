@@ -55,7 +55,7 @@ date_prefix = datetime.now().strftime("%Y%m%d-%H%M%S")
 if DEBUG:
     date_prefix = 'debug-' + date_prefix
 
-prefix = date_prefix + '_segmentation_pilot'
+prefix = 'countdown_crawl'
 manager_params['database_name'] = prefix + '.sqlite'
 manager_params['data_directory'] = '~/' + prefix
 manager_params['log_directory'] = '~/' + prefix
