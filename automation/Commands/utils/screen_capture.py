@@ -410,6 +410,9 @@ def click_handler(element):
         return
 
 
+REMOVE_DUPLICATE_IMAGES = False
+
+
 def capture_screenshots(n_screenshots, **kwargs):
     """Capture screenshots every second."""
     driver = kwargs['driver']
@@ -443,11 +446,11 @@ def capture_screenshots(n_screenshots, **kwargs):
                 continue
             new_image_crc = binascii.crc32(img_b64)
             # check if the image has changed
-            if new_image_crc == last_image_crc:
+            if REMOVE_DUPLICATE_IMAGES and new_image_crc == last_image_crc:  # !!!
                 sleep(max([0, 1-(time() - t0)]))  # try to spend 1s on each it.
                 continue
             timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-            out_png_path = "%s_%s_%d.png" % (
+            out_png_path = "%s_%s_%d_h.png" % (
                 screenshot_base_path, timestamp, idx)
             save_screenshot_b64(out_png_path, img_b64, logger)
             last_image_crc = new_image_crc
