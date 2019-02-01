@@ -338,7 +338,7 @@ def interact_with_the_product_page(visit_duration, **kwargs):
             if new_image_crc == last_image_crc:
                 sleep(max([0, 1-(time() - t0)]))  # try to spend 1s on each loop
                 continue
-            timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
+            timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
             out_png_path = "%s_%d_%s_%d.png" % (
                 screenshot_base_path, shop_bot.phase, timestamp, idx)
             save_screenshot_b64(out_png_path, img_b64, logger)
@@ -375,7 +375,7 @@ def interact_with_the_product_page(visit_duration, **kwargs):
 
     har_path = "%s_%s.har" % (
         har_base_path,
-        datetime.utcnow().strftime("%Y%m%d-%H%M%S"))
+        datetime.now().strftime("%Y%m%d-%H%M%S"))
     dump_har(driver, logger, har_path, visit_id)
 
 
@@ -446,7 +446,7 @@ def capture_screenshots(n_screenshots, **kwargs):
             if new_image_crc == last_image_crc:
                 sleep(max([0, 1-(time() - t0)]))  # try to spend 1s on each it.
                 continue
-            timestamp = datetime.utcnow().strftime("%Y%m%d-%H%M%S")
+            timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
             out_png_path = "%s_%s_%d.png" % (
                 screenshot_base_path, timestamp, idx)
             save_screenshot_b64(out_png_path, img_b64, logger)
@@ -477,5 +477,5 @@ def capture_screenshots(n_screenshots, **kwargs):
 
     har_path = "%s_%s.har" % (
         har_base_path,
-        datetime.utcnow().strftime("%Y%m%d-%H%M%S"))
+        datetime.now().strftime("%Y%m%d-%H%M%S"))
     dump_har(driver, logger, har_path, visit_id)

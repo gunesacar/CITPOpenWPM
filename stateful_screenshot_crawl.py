@@ -82,7 +82,6 @@ else:
 TOTAL_NUM_SITES = len(sites)
 
 print("TOTAL_NUM_SITES", TOTAL_NUM_SITES)
-PROFILE_DIR = os.path.expanduser('~/dev/dark-patterns/data/ff-profile/')
 PROFILE_DIR = os.path.join(DATA_DIR)
 
 
@@ -93,7 +92,7 @@ def crawl(sites):
     if DEBUG:
         date_prefix = 'debug-' + date_prefix
 
-    prefix = 'countdown_crawl'
+    prefix = 'stateful_countdown_crawl'
 
     start_time = time.time()
 
@@ -134,7 +133,7 @@ def crawl(sites):
             url = sites[i]
             cs = CommandSequence.CommandSequence(
                 url, reset=True)
-            N_SCREENSHOTS = 2
+            N_SCREENSHOTS = 3
             GET_TIMEOUT = 60
             cs.get(sleep=1, timeout=GET_TIMEOUT)
             # cs.run_custom_function(close_dialogs, ())
