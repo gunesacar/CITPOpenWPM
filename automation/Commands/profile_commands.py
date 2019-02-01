@@ -160,7 +160,7 @@ def dump_profile(browser_profile_folder, manager_params, browser_params,
         'webappsstore.sqlite-wal',
     ]
     storage_vector_dirs = [
-        'webapps',  # related to localStorage?
+        # 'webapps',  # related to localStorage?
         'storage'  # directory for IndexedDB
     ]
     for item in storage_vector_files:

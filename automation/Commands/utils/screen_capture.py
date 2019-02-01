@@ -477,5 +477,5 @@ def capture_screenshots(n_screenshots, **kwargs):
 
     har_path = "%s_%s.har" % (
         har_base_path,
-        datetime.utcnow().strftime("%Y%m%d%H%M%S"))
+        datetime.utcnow().strftime("%Y%m%d-%H%M%S"))
     dump_har(driver, logger, har_path, visit_id)
