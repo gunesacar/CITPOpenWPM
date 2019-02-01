@@ -15,7 +15,7 @@ from ..utilities.platform_utils import (get_firefox_binary_path,
 from .selenium_firefox import (FirefoxBinary, FirefoxLogInterceptor,
                                FirefoxProfile, Options)
 
-DEFAULT_SCREEN_RES = (1366, 768)
+DEFAULT_SCREEN_RES = (1600, 1200)
 #DEFAULT_SCREEN_RES = (1680, 1920)  # 24" vertical monitor
 
 
