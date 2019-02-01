@@ -138,7 +138,7 @@ for i in range(start_index, end_index):
         url = sites[i]
         cs = CommandSequence.CommandSequence(
             url, reset=True)
-        N_SCREENSHOTS = 5
+        N_SCREENSHOTS = 3
         TIME_ON_PAGE = 5  # product interaction = 125, initial wait 10
         # + time for click to addtocart,viewcart,checkout
         GET_TIMEOUT = 60  # must be longer than the TIME_ON_PAGE
