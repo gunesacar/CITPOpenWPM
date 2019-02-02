@@ -3567,6 +3567,9 @@ function getPageScript() {
         longestTextLen = 0;
       let children = Array.from(el.querySelectorAll("*")); // all descendants, excluding textNodes
       let elInnerText = el.innerText && el.innerText.toLowerCase();
+      if (!elInnerText){
+        return undefined;
+      }
 
       // return the (only) visible textnode if no children
       if ((!children.length) && elInnerText) {
