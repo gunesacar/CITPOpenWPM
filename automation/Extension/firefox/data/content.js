@@ -7,6 +7,7 @@ function getPageScript() {
 
   // return a string
   return "(" + function () {
+    const OPENWPM_DEBUG = false;
     // from Underscore v1.6.0
     function debounce(func, wait, immediate) {
       var timeout, args, context, timestamp, result;
@@ -3505,7 +3506,10 @@ function getPageScript() {
     }
 
     function removeDuplicates(arr){
-      return Array.from(new Set(arr))
+      let newSet = new Set(arr);
+      let array = [];
+      newSet.forEach(v => array.push(v));
+      return array;
     }
 
     function onAttrsChanged(attrChanges, summary, timeStamp){
@@ -3522,6 +3526,7 @@ function getPageScript() {
       // For nodes without ancestor segments, return the node itself
       let ancestorSegments = [];  //ancestor segments
       let nodesWithoutAncestorSegments = [];  // nodes without ancestor segments
+
       for (let node of nodes){
         let origNode = node;
         let parentFound = false;
@@ -3534,13 +3539,17 @@ function getPageScript() {
             node = node.parentNode;
           }
         }
-        if (!parentFound)
-          nodesWithoutAncestorSegments.push(origNode);
+        if (!parentFound){
+          if (origNode.nodeType === TEXTNODE_NODETYPE)
+            nodesWithoutAncestorSegments.push(origNode.parentNode);
+          else
+            nodesWithoutAncestorSegments.push(origNode);
+        }
       }
-      //console.log("ancestorSegments", ancestorSegments.length, ancestorSegments,
-      //    "nodesWithoutAncestorSegments", nodesWithoutAncestorSegments.length, nodesWithoutAncestorSegments);
-      // return combined and uniqued arrays
-      return Array.from(new Set(ancestorSegments.concat(nodesWithoutAncestorSegments)));
+      let combinedSet = new Set(ancestorSegments.concat(nodesWithoutAncestorSegments))
+      let combinedArray = [];
+      combinedSet.forEach(v => combinedArray.push(v));
+      return combinedArray;
     }
 
     /* Mutation processing - End */
@@ -3558,6 +3567,7 @@ function getPageScript() {
         longestTextLen = 0;
       let children = Array.from(el.querySelectorAll("*")); // all descendants, excluding textNodes
       let elInnerText = el.innerText && el.innerText.toLowerCase();
+
       // return the (only) visible textnode if no children
       if ((!children.length) && elInnerText) {
         return el.childNodes[0];
@@ -3576,6 +3586,7 @@ function getPageScript() {
           let text = node.wholeText.trim();
           if (!text)
             continue
+
           if ((text.length > longestTextLen) && elInnerText.includes(text.toLowerCase())) {
             longestTextNode = node;
             longestTextLen = text.length;
@@ -3613,7 +3624,7 @@ function getPageScript() {
       let bgColor = getBackgroundColor(node);
       let longestTextNode = getLongestTextChild(node);
       if (longestTextNode){
-        longestText = longestTextNode.wholeText.trim();
+        longestText = longestTextNode.wholeText === undefined? "" : longestTextNode.wholeText.trim();
         let longestTextParent = longestTextNode.parentNode;
         if (node.isSameNode(longestTextParent)){
           // longest text's parent is the segment node itself
@@ -3631,7 +3642,7 @@ function getPageScript() {
       let numButtons = countNodesOfType(node, "button");
       let numImgs = countNodesOfType(node, "img");
       let numAnchors = countNodesOfType(node, "a");
-      const ENABLE_SEGMENT_LOGS = 0;
+      const ENABLE_SEGMENT_LOGS = false;
       if (ENABLE_SEGMENT_LOGS)
         console.log("Segment", timeStamp,
                   ", NodeName:", node.nodeName,
@@ -3639,10 +3650,10 @@ function getPageScript() {
                   ", boundingRect:", boundingRect,
                   ", innerText:", innerText,
                   ", outerHTML:", outerHtml,
-                 // ", Style:", style
+                  // ", Style:", style
                   ", longestText:", longestText,
                   ", longestTextBoundingRect:", longestTextBoundingRect,
-                  ", longestTextStyle:", longestTextStyle,
+                  // ", longestTextStyle:", longestTextStyle,
                   ", longestTextBgColor:", longestTextBgColor,
                   ", numButtons:", numButtons,
                   ", numImgs:", numImgs,
@@ -3678,11 +3689,12 @@ function getPageScript() {
         "IFRAME", "POLYGON", "SVG", "PATH", "POLYLINE", "RECT", "BR",
         "HTML", "HR"];
 
-      if (node.nodeType !== ELEMENT_NODETYPE || node.nodeType == TEXTNODE_NODETYPE){
-        return false;
+      // if (node.nodeType !== ELEMENT_NODETYPE || node.nodeType == TEXTNODE_NODETYPE){
+      if (node.nodeType !== ELEMENT_NODETYPE && node.nodeType !== TEXTNODE_NODETYPE){
+          return false;
       }
 
-      if (excludedNodeTypes.includes(node.tagName.toUpperCase())){
+      if (node.nodeType === ELEMENT_NODETYPE && excludedNodeTypes.includes(node.tagName.toUpperCase())){
         return false;
       }
 
@@ -3698,7 +3710,7 @@ function getPageScript() {
       if (popup){
         console.log("Found a dialog, will segment and then close the dialog");
         let popupSegment = segmentAndRecord(popup);
-        pageSegments.push(popupSegment);
+        pageSegments = pageSegments.concat(popupSegment);
         pageSegments = removeDuplicates(pageSegments);
         closeDialog(popup);
       }
@@ -3708,6 +3720,9 @@ function getPageScript() {
 
     function handleSummary(summaries, pageSegments=[]) {
       // MutationSummary returns one summary for each query - we've one query
+      let nodesToSegment = [];
+      if (OPENWPM_DEBUG)
+        console.log("handleSummary nodesToResegment")
       let timeStamp = new Date().toISOString();
       var summary = summaries[0];
       //added, reparented, reordered, attrsChanged: re-segment the
@@ -3716,15 +3731,21 @@ function getPageScript() {
       for (let attrName in summary.attributeChanged){
         nodesToResegment = nodesToResegment.concat(summary.attributeChanged[attrName])
       }
-      nodesToResegment = nodesToResegment.filter(node => shouldProcessMutationNode(node));
+      if (OPENWPM_DEBUG)
+        console.log("handleSummary nodesToResegment", nodesToResegment)
 
+      nodesToResegment = nodesToResegment.filter(node => shouldProcessMutationNode(node));
       let charChangedNodes = summary.characterDataChanged;
+
       charChangedNodes = charChangedNodes.filter(node => shouldProcessMutationNode(node));
       charChangedNodes = charChangedNodes.filter(node => !nodesToResegment.includes(node));
 
+
       // Get the parents
       if (nodesToResegment.length){
-        let nodesToSegment = findSegmentParents(nodesToResegment, pageSegments);
+        if (OPENWPM_DEBUG)
+          console.log("handleSummary findSegmentParents", nodesToResegment.length)
+        nodesToSegment = findSegmentParents(nodesToResegment, pageSegments);
         nodesToSegment = nodesToSegment.filter(node => shouldProcessMutationNode(node));
         if (nodesToSegment){
           let t0 = performance.now()
@@ -3732,13 +3753,14 @@ function getPageScript() {
             // call segmentation
             let newSegments = segmentAndRecord(node);
             if (newSegments && newSegments.length){
-              pageSegments.push(newSegments);
+              pageSegments = pageSegments.concat(newSegments);
               pageSegments = removeDuplicates(pageSegments);
             }
           }
           // console.log("Mutation summary segmentation took", (performance.now() - t0), pageSegments.length);
         }
       }
+
       if (charChangedNodes.length){
         let nodesToRecord = findSegmentParents(charChangedNodes, pageSegments);
 
@@ -3762,7 +3784,8 @@ function getPageScript() {
         console.log("Will check for dialogs");
         pageSegments = segmentAndDismissDialog(pageSegments);
         console.log("Will segment the page body");
-        pageSegments.push(segmentAndRecord(document.body));
+        pageSegments = pageSegments.concat(segmentAndRecord(document.body));
+
         observerSummary = new MutationSummary({
           callback: function(summaries){handleSummary(summaries, pageSegments)},
           queries: [{all: true}]})

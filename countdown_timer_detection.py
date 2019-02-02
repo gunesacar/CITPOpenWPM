@@ -84,7 +84,7 @@ sites = []
 
 if DEBUG:
     sites = [
-        'https://lebrontshirtsla.com/products/lebron-james-lakers-t-shirt-witness'
+        'https://www.thertastore.com/kitchen-cabinets/rta-kitchen-cabinets/dakota-white.html'
         ]
 else:
     sites = read_urls_from_csv(csv_path, True)
@@ -136,16 +136,16 @@ for i in range(start_index, end_index):
         url = sites[i]
         cs = CommandSequence.CommandSequence(
             url, reset=True)
-        N_SCREENSHOTS = 3
-        TIME_ON_PAGE = 5  # product interaction = 125, initial wait 10
+        N_SCREENSHOTS = 15
+        TIME_ON_PAGE = 45  # product interaction = 125, initial wait 10
         # + time for click to addtocart,viewcart,checkout
-        GET_TIMEOUT = 60  # must be longer than the TIME_ON_PAGE
+        GET_TIMEOUT = 75  # must be longer than the TIME_ON_PAGE
         cs.get(sleep=1, timeout=GET_TIMEOUT)
         # cs.run_custom_function(close_dialogs, ())
         hostname = urlparse(url).hostname
-        cs.dump_page_source(hostname, timeout=30+5)
+        cs.dump_page_source(hostname, timeout=TIME_ON_PAGE+5)
         cs.run_custom_function(capture_screenshots, (N_SCREENSHOTS, True),
-                               timeout=40)  # 15 until dialog dismissal + 3 for screenshots + 3+ for har
+                               timeout=TIME_ON_PAGE)  # 15 until dialog dismissal + 3 for screenshots + 3+ for har
         manager.execute_command_sequence(cs)
         if not DEBUG:
             write_to_file(CURRENT_SITE_INDEX_FILE, str(i))
