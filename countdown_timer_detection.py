@@ -46,7 +46,7 @@ if USE_SINGLE_BROWSER or DEBUG:
     NUM_BROWSERS = 1
 else:
     NUM_BROWSERS = 7
-NUM_BATCH = 5000
+NUM_BATCH = 100000
 DATA_DIR = os.path.join(os.path.dirname(__file__), 'data')
 
 manager_params, browser_params = TaskManager.load_default_params(NUM_BROWSERS)
@@ -136,7 +136,7 @@ for i in range(start_index, end_index):
         url = sites[i]
         cs = CommandSequence.CommandSequence(
             url, reset=True)
-        N_SCREENSHOTS = 15
+        N_SCREENSHOTS = 10
         TIME_ON_PAGE = 45  # product interaction = 125, initial wait 10
         # + time for click to addtocart,viewcart,checkout
         GET_TIMEOUT = 75  # must be longer than the TIME_ON_PAGE
@@ -144,7 +144,7 @@ for i in range(start_index, end_index):
         # cs.run_custom_function(close_dialogs, ())
         hostname = urlparse(url).hostname
         cs.dump_page_source(hostname, timeout=TIME_ON_PAGE+5)
-        cs.run_custom_function(capture_screenshots, (N_SCREENSHOTS, True),
+        cs.run_custom_function(capture_screenshots, (hostname, N_SCREENSHOTS, True),
                                timeout=TIME_ON_PAGE)  # 15 until dialog dismissal + 3 for screenshots + 3+ for har
         manager.execute_command_sequence(cs)
         if not DEBUG:

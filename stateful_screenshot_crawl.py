@@ -139,7 +139,8 @@ def crawl(sites):
             # cs.run_custom_function(close_dialogs, ())
             hostname = urlparse(url).hostname
             cs.dump_page_source(hostname, timeout=30+5)
-            cs.run_custom_function(capture_screenshots, (N_SCREENSHOTS, False),
+            cs.run_custom_function(capture_screenshots,
+                                   (hostname, N_SCREENSHOTS, False),
                                    timeout=30)  # 15 until dialog dismissal + 5 for screenshots + 3 for har
             cs.dump_profile(PROFILE_DIR, False, False)
             manager.execute_command_sequence(cs)
@@ -152,7 +153,6 @@ def crawl(sites):
 
         print "CLOSING TaskManager after batch"
         manager.close()
-
 
     # Remove index file if we are done
     if not DEBUG and current_index >= TOTAL_NUM_SITES:

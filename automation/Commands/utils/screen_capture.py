@@ -410,35 +410,32 @@ def click_handler(element):
         return
 
 
-REMOVE_DUPLICATE_IMAGES = False
+REMOVE_DUPLICATE_IMAGES = True  # !!!
 
 
-def capture_screenshots(n_screenshots, use_visit_id_in_filenames, **kwargs):
+def capture_screenshots(hostname, n_screenshots,
+                        use_visit_id_in_filenames, **kwargs):
     """Capture screenshots every second."""
     driver = kwargs['driver']
     visit_id = kwargs['visit_id']
     manager_params = kwargs['manager_params']
+    data_dir = join(manager_params['data_directory'], "output")
+    visit_dir = join(data_dir, "%s_%s" % (visit_id, hostname))
     logger = loggingclient(*manager_params['logger_address'])
     landing_url = driver.current_url
-    screenshot_dir = manager_params['screenshot_path']
 
-    har_dir = screenshot_dir.replace("screenshots", "hars")
-    if not isdir(har_dir):
-        os.makedirs(har_dir)
-    har_base_path = join(har_dir, "%d_%s" % (
-        visit_id, urlparse(landing_url).hostname))
+    if not isdir(visit_dir):
+        os.makedirs(visit_dir)
 
     if use_visit_id_in_filenames:
-        screenshot_base_path = join(screenshot_dir, "%d_%s" % (
-            visit_id, urlparse(landing_url).hostname))
+        screenshot_base_path = join(visit_dir, "%d_%s" % (
+            visit_id, hostname))
     else:
-        screenshot_base_path = join(screenshot_dir, "%s" % (
-            urlparse(landing_url).hostname))
+        screenshot_base_path = join(visit_dir, "%s" % (hostname))
 
     sleep(SLEEP_UNTIL_DIALOG_DISMISSAL)
-    phase = 0
     last_image_crc = 0
-    t_begin = time()
+
     for idx in xrange(0, n_screenshots):
         t0 = time()
         try:
@@ -448,23 +445,23 @@ def capture_screenshots(n_screenshots, use_visit_id_in_filenames, **kwargs):
                 logger.exception(
                     "Error while taking screenshot on %s Visit Id: %d"
                     % (driver.current_url, visit_id))
-                sleep(max([0, 1-(time() - t0)]))  # try to spend 1s on each loop
+                sleep(max([0, 1-(time() - t0)]))  # spend 1s on each loop
                 continue
             new_image_crc = binascii.crc32(img_b64)
             # check if the image has changed
-            if REMOVE_DUPLICATE_IMAGES and new_image_crc == last_image_crc:  # !!!
+            if REMOVE_DUPLICATE_IMAGES and new_image_crc == last_image_crc:
                 sleep(max([0, 1-(time() - t0)]))  # try to spend 1s on each it.
                 continue
             timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-            out_png_path = "%s_%s_%d_h.png" % (
+            out_png_path = "%s_%s_%d.png" % (
                 screenshot_base_path, timestamp, idx)
             save_screenshot_b64(out_png_path, img_b64, logger)
             last_image_crc = new_image_crc
             loop_duration = time() - t0
             logger.info(
-                "Saved screenshot on %s Visit Id: %d Loop: %d Phase: %s"
+                "Saved screenshot on %s Visit Id: %d Loop: %d"
                 % (driver.current_url,
-                   visit_id, idx, phase))
+                   visit_id, idx))
 
             sleep(max([0, 1-loop_duration]))
         except Exception as _:
@@ -474,17 +471,12 @@ def capture_screenshots(n_screenshots, use_visit_id_in_filenames, **kwargs):
                 url = "unknown"
 
             logger.exception(
-                "Will quit on %s Visit Id: %d "
-                "Phase: %s Reason: %s landing_url: %s" %
-                (url, visit_id, phase,
-                 "unhandled error", landing_url))
+                "Will quit on %s Visit Id: %d Reason: %s landing_url: %s" %
+                (url, visit_id, "unhandled error", landing_url))
             break
     else:
-        logger.info("Loop is over on %s "
-                    "Visit Id: %d Loop: %d Phase: %s"
-                    % (driver.current_url, visit_id, idx, phase))
+        logger.info("Loop is over on %s Visit Id: %d Loop: %d"
+                    % (driver.current_url, visit_id, idx))
 
-    har_path = "%s_%s.har" % (
-        har_base_path,
-        datetime.now().strftime("%Y%m%d-%H%M%S"))
+    har_path = join(visit_dir, "%d_%s.har" % (visit_id, hostname))
     dump_har(driver, logger, har_path, visit_id)
