@@ -139,7 +139,7 @@ def crawl(sites):
             # cs.run_custom_function(close_dialogs, ())
             hostname = urlparse(url).hostname
             cs.dump_page_source(hostname, timeout=30+5)
-            cs.run_custom_function(capture_screenshots, (N_SCREENSHOTS,),
+            cs.run_custom_function(capture_screenshots, (N_SCREENSHOTS, False),
                                    timeout=30)  # 15 until dialog dismissal + 5 for screenshots + 3 for har
             cs.dump_profile(PROFILE_DIR, False, False)
             manager.execute_command_sequence(cs)

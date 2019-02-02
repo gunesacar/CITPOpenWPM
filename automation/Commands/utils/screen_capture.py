@@ -413,7 +413,7 @@ def click_handler(element):
 REMOVE_DUPLICATE_IMAGES = False
 
 
-def capture_screenshots(n_screenshots, **kwargs):
+def capture_screenshots(n_screenshots, use_visit_id_in_filenames, **kwargs):
     """Capture screenshots every second."""
     driver = kwargs['driver']
     visit_id = kwargs['visit_id']
@@ -427,8 +427,14 @@ def capture_screenshots(n_screenshots, **kwargs):
         os.makedirs(har_dir)
     har_base_path = join(har_dir, "%d_%s" % (
         visit_id, urlparse(landing_url).hostname))
-    screenshot_base_path = join(screenshot_dir, "%s" % (
-        urlparse(landing_url).hostname))
+
+    if use_visit_id_in_filenames:
+        screenshot_base_path = join(screenshot_dir, "%d_%s" % (
+            visit_id, urlparse(landing_url).hostname))
+    else:
+        screenshot_base_path = join(screenshot_dir, "%s" % (
+            urlparse(landing_url).hostname))
+
     sleep(SLEEP_UNTIL_DIALOG_DISMISSAL)
     phase = 0
     last_image_crc = 0
