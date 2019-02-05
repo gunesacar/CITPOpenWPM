@@ -46,6 +46,10 @@ def save_screenshot_b64(out_png_path, image_b64, logger):
     return True
 
 
+def remove_new_lines(html_str):
+    return html_str.replace("\r\n", "").replace("\r", "").replace("\n", "")
+
+
 class ShopBot(object):
 
     def __init__(self, driver, visit_id, manager_params,
@@ -113,7 +117,8 @@ class ShopBot(object):
             return
 
         self.logger.info("Add to cart button: %s Visit Id: %d" %
-                         (button.get_attribute('outerHTML'), self.visit_id))
+                         (remove_new_lines(button.get_attribute('outerHTML')),
+                          self.visit_id))
         click_to_element(button)
         # move_to_and_click(self.driver, button)
         self.logger.info("Clicked to add to cart Visit Id: %d" % self.visit_id)
@@ -138,7 +143,8 @@ class ShopBot(object):
             # self.reason_to_quit = "No view cart button"
 
         self.logger.info("View cart button: %s Visit Id: %d" %
-                         (button.get_attribute('outerHTML'), self.visit_id))
+                         (remove_new_lines(button.get_attribute('outerHTML')),
+                          self.visit_id))
         click_to_element(button)
         self.logger.info("Clicked to view cart Visit Id: %d" % self.visit_id)
         sleep(SLEEP_AFTER_CLICK)
@@ -161,7 +167,8 @@ class ShopBot(object):
                 return
 
         self.logger.info("Checkout button: %s Visit Id: %d" %
-                         (button.get_attribute('outerHTML'), self.visit_id))
+                         (remove_new_lines(button.get_attribute('outerHTML')),
+                          self.visit_id))
         click_to_element(button)
         self.logger.info("Clicked to checkout Visit Id: %d" % self.visit_id)
         sleep(SLEEP_AFTER_CLICK)
@@ -255,32 +262,45 @@ def dump_har(driver, logger, out_har_path, visit_id):
           token: "test",
           fileName: "%s"
         };
-
-        return ("HAR" in window) && HAR.triggerExport(options).then(result => {
-          console.log("Exported HAR");
-        });
+        setTimeout(function(){
+            ("HAR" in window) && HAR.triggerExport(options).then(result => {
+              console.log("Exported HAR");
+            });
+        }, 10);
+        return ("HAR" in window);
     """ % ext_har_path)
     # JS call is async, wait until the har dump appears
     if rv is False:
-        logger.warning("HAR export is not available %s" % rv)
+        logger.warning("HAR export is not available %s Visit Id: %d" %
+                       (rv, visit_id))
         return
+    MAX_HAR_EXPORT_WAIT = 20
+    waited = 0
     while not isfile(ext_har_full_path):
+        if waited > MAX_HAR_EXPORT_WAIT:
+            logger.warning("HAR export timed out %d" % visit_id)
+            return
         sleep(1)
+        waited += 1
+    logger.info("HAR export successful after waiting %ds Visit Id: %d" %
+                (waited, visit_id))
     sleep(3)  # in case it takes a while to update
     # copy from extension profile dir to crawl dir
     shutil.copy2(ext_har_full_path, out_har_path)
 
 
-def interact_with_the_product_page(visit_duration, **kwargs):
+def interact_with_the_product_page(hostname, visit_duration, **kwargs):
     """Capture screenshots every second."""
     driver = kwargs['driver']
     visit_id = kwargs['visit_id']
     manager_params = kwargs['manager_params']
+    data_dir = join(manager_params['data_directory'], "output")
+    visit_dir = join(data_dir, "%s_%s" % (visit_id, hostname))
     logger = loggingclient(*manager_params['logger_address'])
     landing_url = driver.current_url
     landing_ps1 = get_ps_plus_1(landing_url)
     shop_bot = ShopBot(driver, visit_id, manager_params, logger, landing_url)
-    screenshot_dir = manager_params['screenshot_path']
+    screenshot_base_path = join(visit_dir, "%d_%s" % (visit_id, hostname))
 
     if not shop_bot.can_execute_js():
         logger.warning(
@@ -294,17 +314,19 @@ def interact_with_the_product_page(visit_duration, **kwargs):
             % (driver.current_url, visit_id))
         return False
 
-    har_dir = screenshot_dir.replace("screenshots", "hars")
-    if not isdir(har_dir):
-        os.makedirs(har_dir)
-    har_base_path = join(har_dir, "%d_%s" % (
-        visit_id, urlparse(landing_url).hostname))
-    screenshot_base_path = join(screenshot_dir, "%d_%s" % (
-        visit_id, urlparse(landing_url).hostname))
+    if not isdir(visit_dir):
+        os.makedirs(visit_dir)
 
     last_image_crc = 0
     t_begin = time()
     for idx in xrange(0, visit_duration):
+        if (time() - t_begin) > visit_duration:  # timeout
+            logger.info("Timeout in interact_with_the_product_page on %s "
+                        "Visit Id: %d Loop: %d Phase: %s"
+                        % (driver.current_url, visit_id, idx,
+                           shop_bot.phase))
+            break
+
         t0 = time()
         try:
             current_ps1 = get_ps_plus_1(driver.current_url)
@@ -325,6 +347,7 @@ def interact_with_the_product_page(visit_duration, **kwargs):
                        shop_bot.reason_to_quit,
                        shop_bot.cart_checkout_retries, landing_url))
                 break
+            timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
             try:
                 img_b64 = driver.get_screenshot_as_base64()
             except Exception:
@@ -333,12 +356,13 @@ def interact_with_the_product_page(visit_duration, **kwargs):
                     % (driver.current_url, visit_id))
                 sleep(max([0, 1-(time() - t0)]))  # try to spend 1s on each loop
                 continue
+
             new_image_crc = binascii.crc32(img_b64)
             # check if the image has changed
             if new_image_crc == last_image_crc:
                 sleep(max([0, 1-(time() - t0)]))  # try to spend 1s on each loop
                 continue
-            timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+
             out_png_path = "%s_%d_%s_%d.png" % (
                 screenshot_base_path, shop_bot.phase, timestamp, idx)
             save_screenshot_b64(out_png_path, img_b64, logger)
@@ -350,12 +374,6 @@ def interact_with_the_product_page(visit_duration, **kwargs):
                    visit_id, idx, shop_bot.phase))
 
             sleep(max([0, 1-loop_duration]))
-            if (time() - t_begin) > visit_duration:  # timeout
-                logger.info("Timeout in interact_with_the_product_page on %s "
-                            "Visit Id: %d Loop: %d Phase: %s"
-                            % (driver.current_url, visit_id, idx,
-                               shop_bot.phase))
-                break
         except Exception as _:
             try:
                 url = driver.current_url
@@ -373,41 +391,8 @@ def interact_with_the_product_page(visit_duration, **kwargs):
                     "Visit Id: %d Loop: %d Phase: %s"
                     % (driver.current_url, visit_id, idx, shop_bot.phase))
 
-    har_path = "%s_%s.har" % (
-        har_base_path,
-        datetime.now().strftime("%Y%m%d-%H%M%S"))
+    har_path = join(visit_dir, "%d_%s.har" % (visit_id, hostname))
     dump_har(driver, logger, har_path, visit_id)
-
-
-def click_handler(element):
-    if element is not None:
-        ase = element.find_elements_by_tag_name('a')
-        if ase and len(ase) != 0:
-            click_to_element(ase[0])
-            return
-
-        buttons = element.find_elements_by_tag_name('button')
-        if buttons and len(buttons) != 0:
-            click_to_element(buttons[0])
-            return
-
-        children = element.find_elements_by_xpath("*")
-        if len(children) > 0:
-
-            visible_child = None
-            for child in children:
-                if child.is_displayed():
-                    visible_child = child
-                    break
-
-            if visible_child:
-                click_to_element(visible_child)
-            else:
-                click_to_element(children[0])
-        else:
-            click_to_element(element)
-
-        return
 
 
 REMOVE_DUPLICATE_IMAGES = True  # !!!
@@ -480,3 +465,34 @@ def capture_screenshots(hostname, n_screenshots,
 
     har_path = join(visit_dir, "%d_%s.har" % (visit_id, hostname))
     dump_har(driver, logger, har_path, visit_id)
+
+
+def click_handler(element):
+    if element is not None:
+        ase = element.find_elements_by_tag_name('a')
+        if ase and len(ase) != 0:
+            click_to_element(ase[0])
+            return
+
+        buttons = element.find_elements_by_tag_name('button')
+        if buttons and len(buttons) != 0:
+            click_to_element(buttons[0])
+            return
+
+        children = element.find_elements_by_xpath("*")
+        if len(children) > 0:
+
+            visible_child = None
+            for child in children:
+                if child.is_displayed():
+                    visible_child = child
+                    break
+
+            if visible_child:
+                click_to_element(visible_child)
+            else:
+                click_to_element(children[0])
+        else:
+            click_to_element(element)
+
+        return

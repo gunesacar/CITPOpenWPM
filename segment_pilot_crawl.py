@@ -45,7 +45,7 @@ if DEBUG:
     NUM_BROWSERS = 1
 else:
     NUM_BROWSERS = 7
-NUM_BATCH = 5000
+NUM_BATCH = 1000000
 DATA_DIR = os.path.join(os.path.dirname(__file__), 'data')
 
 manager_params, browser_params = TaskManager.load_default_params(NUM_BROWSERS)
@@ -83,7 +83,7 @@ sites = []
 
 if DEBUG:
     sites = [
-        'https://lebrontshirtsla.com/products/lebron-james-lakers-t-shirt-witness'
+        'https://www.holabirdsports.com/collections/brand-new-babolat-sfx3/products/babolat-sfx3-all-court-womens-white-silver'
         ]
 else:
     sites = read_urls_from_csv(csv_path)
@@ -139,13 +139,12 @@ for i in range(start_index, end_index):
             url, reset=True)
         TIME_ON_PAGE = 500  # product interaction = 125, initial wait 10
         # + time for click to addtocart,viewcart,checkout
-        GET_TIMEOUT = TIME_ON_PAGE * 2  # must be longer than the TIME_ON_PAGE
-        cs.get(sleep=1, timeout=GET_TIMEOUT)
+        cs.get(sleep=1, timeout=TIME_ON_PAGE)
         # cs.run_custom_function(close_dialogs, ())
         hostname = urlparse(url).hostname
-        cs.dump_page_source(hostname, timeout=TIME_ON_PAGE+5)
-        cs.run_custom_function(interact_with_the_product_page, (TIME_ON_PAGE,),
-                               timeout=TIME_ON_PAGE+5)
+        cs.dump_page_source(hostname, timeout=TIME_ON_PAGE)
+        cs.run_custom_function(interact_with_the_product_page, (hostname, TIME_ON_PAGE-50),
+                               timeout=TIME_ON_PAGE-50)
         manager.execute_command_sequence(cs)
         if not DEBUG:
             write_to_file(CURRENT_SITE_INDEX_FILE, str(i))
