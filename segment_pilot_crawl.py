@@ -83,7 +83,7 @@ sites = []
 
 if DEBUG:
     sites = [
-        'https://www.holabirdsports.com/collections/brand-new-babolat-sfx3/products/babolat-sfx3-all-court-womens-white-silver'
+        'https://store.034motorsport.com/dynamic-lowering-springs-for-mkvii-volkswagen-golf-r.html'
         ]
 else:
     sites = read_urls_from_csv(csv_path)

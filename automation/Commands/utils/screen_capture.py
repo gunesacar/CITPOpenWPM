@@ -5,7 +5,6 @@ from ...MPLogger import loggingclient
 
 from time import sleep, time
 from datetime import datetime
-from urlparse import urlparse
 import binascii
 import base64
 from selenium.common.exceptions import WebDriverException
@@ -63,11 +62,20 @@ class ShopBot(object):
         self.update_phase(PHASE_ON_PRODUCT_PAGE)
         self.landing_page = landing_page
         self.cart_checkout_retries = 0
+        self.initial_checks_done = False
 
     def act(self, seconds_since_load):
         if seconds_since_load < SLEEP_UNTIL_DIALOG_DISMISSAL:
             return
         if self.phase == PHASE_ON_PRODUCT_PAGE:
+            if not self.initial_checks_done:
+                self.initial_checks_done = True
+                if not self.can_execute_js():
+                    return False
+                if not self.is_product_page():
+                    self.reason_to_quit = "not a product page"
+                    return False
+
             self.dismiss_dialog()
             self.interact_with_product_attrs()
             sleep(SLEEP_AFTER_CLICK)
@@ -257,7 +265,9 @@ def dump_har(driver, logger, out_har_path, visit_id):
     profile_path = driver.capabilities["moz:profile"]
     ext_har_full_path = join(profile_path, "har", "logs",
                              ext_har_path + ".har")
-    rv = driver.execute_script("""
+    rv = False
+    try:
+        rv = driver.execute_script("""
         var options = {
           token: "test",
           fileName: "%s"
@@ -268,7 +278,9 @@ def dump_har(driver, logger, out_har_path, visit_id):
             });
         }, 10);
         return ("HAR" in window);
-    """ % ext_har_path)
+        """ % ext_har_path)
+    except Exception:
+        pass
     # JS call is async, wait until the har dump appears
     if rv is False:
         logger.warning("HAR export is not available %s Visit Id: %d" %
@@ -301,18 +313,6 @@ def interact_with_the_product_page(hostname, visit_duration, **kwargs):
     landing_ps1 = get_ps_plus_1(landing_url)
     shop_bot = ShopBot(driver, visit_id, manager_params, logger, landing_url)
     screenshot_base_path = join(visit_dir, "%d_%s" % (visit_id, hostname))
-
-    if not shop_bot.can_execute_js():
-        logger.warning(
-            "Will quit. Reason: %s on %s Visit Id: %d"
-            % (shop_bot.reason_to_quit, driver.current_url, visit_id))
-        return False
-
-    if not shop_bot.is_product_page():
-        logger.warning(
-            "Will quit. Reason: not a product page on %s Visit Id: %d"
-            % (driver.current_url, visit_id))
-        return False
 
     if not isdir(visit_dir):
         os.makedirs(visit_dir)
