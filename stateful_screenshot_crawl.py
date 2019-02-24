@@ -9,6 +9,18 @@ from automation import TaskManager, CommandSequence
 from automation.Errors import CommandExecutionError
 from automation.utilities.domain_utils import get_ps_plus_1
 
+# To run scheduled monitoring crawls:
+# 1 add cron jobs
+#
+# 0 * * * * cd ~/dev/dark-patterns/src/crawler/OpenWPM/; python stateful_screenshot_crawl.py ~/dev/dark-patterns/data/countdown-timers/countdown-sample.csv 1 &>> ~/cron-stateful-countdown-1.log
+# 0 * * * * cd ~/dev/dark-patterns/src/crawler/OpenWPM/; python stateful_screenshot_crawl.py ~/dev/dark-patterns/data/countdown-timers/countdown-sample.csv 2 &>> ~/cron-stateful-countdown-2.log
+# 0 * * * * cd ~/dev/dark-patterns/src/crawler/OpenWPM/; python stateful_screenshot_crawl.py ~/dev/dark-patterns/data/countdown-timers/countdown-sample.csv 3 &>> ~/cron-stateful-countdown-3.log
+# 0 * * * * cd ~/dev/dark-patterns/src/crawler/OpenWPM/; python stateful_screenshot_crawl.py ~/dev/dark-patterns/data/countdown-timers/countdown-sample.csv 4 &>> ~/cron-stateful-countdown-4.log
+#
+# 2 creat eprofile_1,profile_2, .. profile_n folders
+# 3 copy the seed profile (profile.tar) into each folder
+
+
 CURRENT_SITE_INDEX_FILE = expanduser('~/.openwpm/current_site_index')
 REBOOT_FILE = expanduser('~/.openwpm/reboot')
 CRAWL_DONE_FILE = expanduser('~/.openwpm/crawl_done')
@@ -20,7 +32,7 @@ def print_usage():
     print("Usage: python screenshot_crawl.py path/to/urls.csv")
 
 
-if len(sys.argv) != 2:
+if len(sys.argv) < 2:
     print_usage()
     sys.exit(1)
 
@@ -33,6 +45,17 @@ elif isfile(sys.argv[1]):
 else:
     print_usage()
     sys.exit(1)
+
+
+if len(sys.argv) == 3:
+    profile_no = int(sys.argv[2])
+else:
+    profile_no = 1
+
+
+PROFILE_DIR = os.path.join(os.path.dirname(__file__),
+                           'profile_%d' % profile_no)
+print "PROFILE_DIR", PROFILE_DIR
 
 
 def write_to_file(file_path, data):
@@ -48,7 +71,6 @@ else:
     NUM_BROWSERS = 7
 NUM_BATCH = 5000
 DATA_DIR = os.path.join(os.path.dirname(__file__), 'data')
-
 
 
 def read_urls_from_csv(csv_path, add_home_pages=False):
@@ -80,19 +102,16 @@ else:
     #    sites.append(l.rstrip())
 
 TOTAL_NUM_SITES = len(sites)
-
 print("TOTAL_NUM_SITES", TOTAL_NUM_SITES)
-PROFILE_DIR = os.path.join(DATA_DIR)
 
 
-
-def crawl(sites):
+def crawl(sites, profile_no):
 
     date_prefix = datetime.now().strftime("%Y%m%d-%H%M%S")
     if DEBUG:
         date_prefix = 'debug-' + date_prefix
 
-    prefix = 'stateful_countdown_crawl'
+    prefix = 'stateful_countdown_crawl_%s' % profile_no
 
     start_time = time.time()
 
@@ -104,7 +123,8 @@ def crawl(sites):
     current_index = 0
     for i in range(start_index, end_index):
 
-        manager_params, browser_params = TaskManager.load_default_params(NUM_BROWSERS)
+        manager_params, browser_params = TaskManager.load_default_params(
+            NUM_BROWSERS)
         manager_params['database_name'] = prefix + '.sqlite'
         manager_params['data_directory'] = '~/' + prefix
         manager_params['log_directory'] = '~/' + prefix
@@ -144,8 +164,6 @@ def crawl(sites):
                                    timeout=30)  # 15 until dialog dismissal + 5 for screenshots + 3 for har
             cs.dump_profile(PROFILE_DIR, False, False)
             manager.execute_command_sequence(cs)
-            if not DEBUG:
-                write_to_file(CURRENT_SITE_INDEX_FILE, str(i))
         except CommandExecutionError:
             if not DEBUG:
                 write_to_file(REBOOT_FILE, str(1))
@@ -154,13 +172,9 @@ def crawl(sites):
         print "CLOSING TaskManager after batch"
         manager.close()
 
-    # Remove index file if we are done
-    if not DEBUG and current_index >= TOTAL_NUM_SITES:
-        os.remove(CURRENT_SITE_INDEX_FILE)
-        write_to_file(CRAWL_DONE_FILE, str(1))
-
     print "Total time: " + str(time.time() - start_time)
+
 
 for site in sites:
     print "will crawl", site
-    crawl([site,])
+    crawl([site, ], profile_no)
