@@ -7,6 +7,7 @@ from time import sleep, time
 from datetime import datetime
 import binascii
 import base64
+from urlparse import urlparse
 from selenium.common.exceptions import WebDriverException
 from webdriver_extensions import click_to_element
 from ...utilities.domain_utils import get_ps_plus_1
@@ -398,14 +399,20 @@ def interact_with_the_product_page(hostname, visit_duration, **kwargs):
 REMOVE_DUPLICATE_IMAGES = True  # !!!
 
 
-def capture_screenshots(hostname, n_screenshots,
+def capture_screenshots(url, n_screenshots,
                         use_visit_id_in_filenames, **kwargs):
     """Capture screenshots every second."""
     driver = kwargs['driver']
     visit_id = kwargs['visit_id']
+    hostname = urlparse(url).hostname
     manager_params = kwargs['manager_params']
     data_dir = join(manager_params['data_directory'], "output")
-    visit_dir = join(data_dir, "%s_%s" % (visit_id, hostname))
+    if use_visit_id_in_filenames:
+        visit_dir = join(data_dir, "%s_%s" % (visit_id, hostname))
+    else:
+        # when we have mutiple urls
+        checksum = hex(binascii.crc32(url)).split('x')[-1]
+        visit_dir = join(data_dir, "%s_%s" % (hostname, checksum))
     logger = loggingclient(*manager_params['logger_address'])
     landing_url = driver.current_url
 

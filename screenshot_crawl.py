@@ -147,7 +147,7 @@ for i in range(start_index, end_index):
         hostname = urlparse(url).hostname
         cs.dump_page_source(hostname, timeout=30+5)
         cs.run_custom_function(capture_screenshots,
-                               (hostname, N_SCREENSHOTS, True),
+                               (url, N_SCREENSHOTS, True),
                                timeout=30)  # 15 until dialog dismissal + 5 for screenshots + 3 for har
         manager.execute_command_sequence(cs)
         if not DEBUG:
