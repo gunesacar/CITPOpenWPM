@@ -410,7 +410,12 @@ def capture_screenshots(url, n_screenshots,
     if use_visit_id_in_filenames:
         visit_dir = join(data_dir, "%s_%s" % (visit_id, hostname))
     else:
-        # when we have mutiple urls
+        # We add a checksum derived from the page URL to the visit_dir to have
+        # unique visit_dir paths for each page..
+        # To store screenshots from the same page in the same folder we don't
+        # use visit_id in the path. To prevent mixing screenshots from
+        # different URLs of the same site, we add a
+        # checksum derived from the URL to the hostname.
         checksum = hex(binascii.crc32(url)).split('x')[-1]
         visit_dir = join(data_dir, "%s_%s" % (hostname, checksum))
     logger = loggingclient(*manager_params['logger_address'])
