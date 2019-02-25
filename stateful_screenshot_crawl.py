@@ -138,7 +138,7 @@ def crawl(sites, profile_no):
             browser_params[i]['js_instrument'] = True
             browser_params[i]['cookie_instrument'] = True
             browser_params[i]['http_instrument'] = True
-            browser_params[i]['save_javascript'] = True
+            browser_params[i]['save_javascript'] = False
             browser_params[i]['har-export'] = True
             browser_params[i]['profile_tar'] = PROFILE_DIR
             # browser_params[i]['profile_archive_dir'] = os.path.expanduser('~/dev/dark-patterns/data/ff-profile/')
