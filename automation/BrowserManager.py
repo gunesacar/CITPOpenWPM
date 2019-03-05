@@ -283,13 +283,15 @@ class Browser:
                                   self.crawl_id)
                 pass
 
-    def shutdown_browser(self, during_init):
+    def shutdown_browser(self, during_init, block_on_commands=False):
         """ Runs the closing tasks for this Browser/BrowserManager """
         # Join command thread
         if self.command_thread is not None:
             self.logger.debug(
                 "BROWSER %i: Joining command thread" % self.crawl_id)
             start_time = time.time()
+            if block_on_commands:
+                self.command_thread.join()
             if self.current_timeout is not None:
                 self.command_thread.join(self.current_timeout + 10)
             else:

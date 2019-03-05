@@ -164,3 +164,9 @@ class CommandSequence:
                                         "the dump page source command", self)
         command = ('RUN_CUSTOM_FUNCTION', function_handle, func_args)
         self.commands_with_timeout.append((command, timeout))
+
+    def start_manual_interaction(self):
+        """Keep the browser open for manual interaction"""
+        command = ('MANUAL_INTERACTION',)
+        self.contains_get_or_browse = True
+        self.commands_with_timeout.append((command, -1))

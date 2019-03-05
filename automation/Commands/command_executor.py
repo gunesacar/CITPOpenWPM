@@ -71,3 +71,9 @@ def execute_command(command, webdriver, browser_settings, browser_params,
                     "manager_params": manager_params,
                     "extension_socket": extension_socket}
         command[1](*command[2], **arg_dict)
+
+    if command[0] == 'MANUAL_INTERACTION':
+        browser_commands.manual_interaction(
+            visit_id=command[0],
+            webdriver=webdriver, manager_params=manager_params,
+            extension_socket=extension_socket)

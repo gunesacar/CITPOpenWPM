@@ -405,3 +405,33 @@ def recursive_dump_page_source(visit_id, driver, manager_params, suffix=''):
 
     with gzip.GzipFile(outfile, 'wb') as f:
         f.write(json.dumps(page_source).encode('utf-8'))
+
+def manual_interaction(visit_id, webdriver, manager_params, extension_socket):
+    """Keeps the browser open for manual interaction.
+    Returns when the browser closes.
+    """
+    logger = loggingclient(*manager_params['logger_address'])
+
+    if extension_socket is not None:
+        extension_socket.send(visit_id)
+
+    # Execute a get through selenium
+    try:
+        webdriver.get("about:newtab")
+    except TimeoutException:
+        pass
+
+    # Sleep after get returns
+    logger.info(
+        "Keeping browser open for manual interaction. To close, close all "
+        "browser windows."
+    )
+    while True:
+        try:
+            webdriver.current_url
+        except Exception:
+            logger.info(
+                    "All windows closed, or exception during manual "
+                    "interaction. Closing OpenWPM...")
+            return
+        time.sleep(1)

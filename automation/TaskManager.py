@@ -253,7 +253,7 @@ class TaskManager:
         self.logging_status_queue.put("DIE")
         self.loggingserver.join(300)
 
-    def _shutdown_manager(self, during_init=False):
+    def _shutdown_manager(self, during_init=False, block_on_commands=False):
         """
         Wait for current commands to finish, close all child processes and
         threads
@@ -263,7 +263,7 @@ class TaskManager:
         self.closing = True
 
         for browser in self.browsers:
-            browser.shutdown_browser(during_init)
+            browser.shutdown_browser(during_init, block_on_commands)
 
         self.sock.close()  # close socket to data aggregator
         self._kill_aggregators()
@@ -289,9 +289,14 @@ class TaskManager:
         """
         self.logger.debug("Checking command failure status indicator...")
         if self.failure_status:
+            self._cleanup_before_fail()
+            if self.failure_status['ErrorType'] == 'ManualInteractionClose':
+                self.logger.info(
+                        "Browser closed during manual interaction. Shutting "
+                        "down the rest of OpenWPM.")
+                return
             self.logger.debug(
                 "TaskManager failure status set, halting command execution.")
-            self._cleanup_before_fail()
             if self.failure_status['ErrorType'] == 'ExceedCommandFailureLimit':
                 raise CommandExecutionError(
                     "TaskManager exceeded maximum consecutive command "
@@ -435,7 +440,8 @@ class TaskManager:
                               'SAVE_SCREENSHOT',
                               'SCREENSHOT_FULL_PAGE',
                               'DUMP_PAGE_SOURCE',
-                              'RECURSIVE_DUMP_PAGE_SOURCE']:
+                              'RECURSIVE_DUMP_PAGE_SOURCE',
+                              'MANUAL_INTERACTION']:
                 start_time = time.time()
                 command += (browser.curr_visit_id,)
             elif command[0] in ['DUMP_FLASH_COOKIES', 'DUMP_PROFILE_COOKIES']:
@@ -448,9 +454,18 @@ class TaskManager:
 
             # received reply from BrowserManager, either success or failure
             try:
-                status = browser.status_queue.get(
-                    True, browser.current_timeout)
+                if browser.current_timeout == -1:
+                    self.logger.info("Executing command with no timeout")
+                    status = browser.status_queue.get(True, None)
+                else:
+                    status = browser.status_queue.get(
+                            True, browser.current_timeout)
                 if status == "OK":
+                    if command[0] == 'MANUAL_INTERACTION':
+                        self.failure_status = {
+                            'ErrorType': 'ManualInteractionClose'
+                        }
+                        return
                     command_succeeded = 1
                 elif status[0] == "CRITICAL":
                     self.logger.critical(
@@ -550,11 +565,11 @@ class TaskManager:
         command_sequence.reset = reset
         self.execute_command_sequence(command_sequence, index=index)
 
-    def close(self):
+    def close(self, block_on_commands=False):
         """
         Execute shutdown procedure for TaskManager
         """
         if self.closing:
             self.logger.error("TaskManager already closed")
             return
-        self._shutdown_manager()
+        self._shutdown_manager(block_on_commands=block_on_commands)
