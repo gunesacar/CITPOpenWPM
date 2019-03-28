@@ -454,7 +454,14 @@ function getPageScript() {
       return function () {
         var callContext = getOriginatingScriptContext(!!logSettings.logCallStack);
         logCall(objectName + '.' + methodName, arguments, callContext, logSettings);
-        return func.apply(this, arguments);
+        var rv = func.apply(this, arguments);
+
+       // Save toDataURL return values
+        if (methodName == 'toDataURL') {
+          logValue(objectName + '.' + methodName, rv, 'return', callContext, logSettings);
+        }
+
+        return rv;
       };
     }
 

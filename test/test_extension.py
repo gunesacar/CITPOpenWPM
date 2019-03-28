@@ -187,6 +187,8 @@ class TestExtension(OpenWPMTest):
         rows = db_utils.get_javascript_entries(db)
         observed_rows = set()
         for row in rows:
+            if row['operation'] == 'return':
+                continue
             item = (row['script_url'], row['symbol'], row['operation'],
                     row['value'], row['arguments'])
             observed_rows.add(item)
