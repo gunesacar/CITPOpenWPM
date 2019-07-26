@@ -55,10 +55,10 @@ date_prefix = datetime.now().strftime("%Y%m%d-%H%M%S")
 if DEBUG:
     date_prefix = 'debug-' + date_prefix
 
-prefix = 'countdown_crawl'
+prefix = 'social_proof_monitoring_crawl'
 manager_params['database_name'] = prefix + '.sqlite'
-manager_params['data_directory'] = '~/' + prefix
-manager_params['log_directory'] = '~/' + prefix
+manager_params['data_directory'] = '/mnt/10tb4/dp-crawls/' + prefix
+manager_params['log_directory'] = '/mnt/10tb4/dp-crawls/' + prefix
 manager_params['testing'] = DEBUG
 # Read the site list
 
@@ -138,17 +138,17 @@ for i in range(start_index, end_index):
         url = sites[i]
         cs = CommandSequence.CommandSequence(
             url, reset=True)
-        N_SCREENSHOTS = 3
-        TIME_ON_PAGE = 5  # product interaction = 125, initial wait 10
+        N_SCREENSHOTS = 30
+        TIME_ON_PAGE = 60  # product interaction = 125, initial wait 10
         # + time for click to addtocart,viewcart,checkout
-        GET_TIMEOUT = 60  # must be longer than the TIME_ON_PAGE
+        GET_TIMEOUT = 90  # must be longer than the TIME_ON_PAGE
         cs.get(sleep=1, timeout=GET_TIMEOUT)
         # cs.run_custom_function(close_dialogs, ())
         hostname = urlparse(url).hostname
         cs.dump_page_source(hostname, timeout=30+5)
         cs.run_custom_function(capture_screenshots,
-                               (url, N_SCREENSHOTS, True),
-                               timeout=30)  # 15 until dialog dismissal + 5 for screenshots + 3 for har
+                               (url, N_SCREENSHOTS, False),
+                               timeout=90)  # 15 until dialog dismissal + 5 for screenshots + 3 for har
         manager.execute_command_sequence(cs)
         if not DEBUG:
             write_to_file(CURRENT_SITE_INDEX_FILE, str(i))
