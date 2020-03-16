@@ -28,7 +28,7 @@ jmespath==0.9.5           # via boto3, botocore
 mccabe==0.6.1             # via flake8
 mini-amf==0.9.1           # via -r requirements.in
 mmh3==2.5.1               # via -r requirements.in
-more-itertools==8.2.0     # via pytest
+more-itertools            # via pytest
 multiprocess==0.70.9      # via -r requirements.in
 numpy==1.18.1             # via -r requirements.in, pandas, pyarrow
 packaging==20.3           # via pytest
@@ -68,7 +68,7 @@ toml==0.10.0              # via isort
 traitlets==4.3.3          # via ipython
 urllib3==1.25.8           # via botocore, selenium, sentry-sdk
 wcwidth==0.1.8            # via prompt-toolkit, pytest
-zipp==3.1.0               # via importlib-metadata
+zipp                      # via importlib-metadata
 
 # The following packages are considered to be unsafe in a requirements file:
 # setuptools
