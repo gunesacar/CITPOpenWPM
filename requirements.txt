@@ -7,8 +7,8 @@
 attrs==19.3.0             # via pytest
 backcall==0.1.0           # via ipython
 beautifulsoup4==4.8.2     # via -r requirements.in
-boto3==1.12.20            # via -r requirements.in, s3fs
-botocore==1.15.20         # via boto3, s3fs, s3transfer
+boto3==1.12.22            # via -r requirements.in, s3fs
+botocore==1.15.22         # via boto3, s3fs, s3transfer
 certifi==2019.11.28       # via sentry-sdk
 cython==0.29.15           # via -r requirements.in
 decorator==4.4.2          # via ipython, traitlets
@@ -16,7 +16,7 @@ defusedxml==0.6.0         # via mini-amf
 dill==0.3.1.1             # via -r requirements.in, multiprocess
 docutils==0.15.2          # via botocore
 entrypoints==0.3          # via flake8
-flake8-isort==2.8.0       # via -r requirements.in
+flake8-isort==2.9.0       # via -r requirements.in
 flake8==3.7.9             # via -r requirements.in, flake8-isort
 fsspec==0.6.2             # via s3fs
 importlib-metadata==1.5.0  # via pluggy, pytest
@@ -32,7 +32,7 @@ more-itertools==8.2.0     # via pytest
 multiprocess==0.70.9      # via -r requirements.in
 numpy==1.18.1             # via -r requirements.in, pandas, pyarrow
 packaging==20.3           # via pytest
-pandas==1.0.1             # via -r requirements.in
+pandas==1.0.2             # via -r requirements.in
 parso==0.6.2              # via jedi
 pexpect==4.8.0            # via ipython
 pickleshare==0.7.5        # via ipython
@@ -50,7 +50,7 @@ pycodestyle==2.5.0        # via flake8
 pyflakes==2.1.1           # via flake8
 pygments==2.6.1           # via ipython
 pyparsing==2.4.6          # via packaging
-pytest==5.4.0             # via -r requirements.in
+pytest==5.4.1             # via -r requirements.in
 python-dateutil==2.8.1    # via -r requirements.in, botocore, pandas
 pytz==2019.3              # via pandas
 redis==3.4.1              # via -r requirements.in
